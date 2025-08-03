@@ -81,38 +81,22 @@ const SpreadsheetUploadBlog = ({ onDataParsed, title, templateData }: Spreadshee
     } else {
       const exampleRow = expectedColumns.map(col => {
         switch (col) {
-          case 'title':
-            return 'Sample Blog Post';
-          case 'content':
-            return 'This is the main content of the blog post...';
-          case 'excerpt':
-            return 'Short description of the blog post';
-          case 'image':
-            return 'https://example.com/blog-image.jpg';
-          case 'author':
-            return 'John Doe';
-          case 'published':
-            return 'true';
-          case 'position':
-            return '1';
-          case 'category':
-            return 'Travel';
-          case 'editor_name':
-            return 'Jane Smith';
-          case 'date_written':
-            return '2023-01-01';
-          case 'show_on_homepage':
-            return 'true';
-          case 'additional_images':
-            return 'https://example.com/image1.jpg;https://example.com/image2.jpg';
-          case 'price':
-            return '19900';
-          case 'itinerary':
-            return 'Day 1: Arrival;Day 2: Sightseeing';
-          case 'author_image':
-            return 'https://example.com/author.jpg';
-          default:
-            return '';
+          case 'title': return 'Sample Blog Post';
+          case 'content': return 'This is the main content of the blog post...';
+          case 'excerpt': return 'Short description of the blog post';
+          case 'image': return 'https://example.com/blog-image.jpg';
+          case 'author': return 'John Doe';
+          case 'published': return 'true';
+          case 'position': return '1';
+          case 'category': return 'Travel';
+          case 'editor_name': return 'Jane Smith';
+          case 'date_written': return '2023-01-01';
+          case 'show_on_homepage': return 'true';
+          case 'additional_images': return 'https://example.com/image1.jpg;https://example.com/image2.jpg';
+          case 'price': return '19900';
+          case 'itinerary': return 'Day 1: Arrival;Day 2: Sightseeing';
+          case 'author_image': return 'https://example.com/author.jpg';
+          default: return '';
         }
       }).join(',');
       return headers + '\n' + exampleRow;
@@ -120,24 +104,42 @@ const SpreadsheetUploadBlog = ({ onDataParsed, title, templateData }: Spreadshee
   };
 
   const parseDate = (dateString: string): string => {
-    if (!dateString) return '';
+    if (!dateString || dateString.trim() === '') return '';
     
-    if (dateString.includes('/')) {
-      const parts = dateString.split('/');
+    const cleanDate = dateString.trim();
+    
+    // Handle MM/DD/YY or MM/DD/YYYY format
+    if (cleanDate.includes('/')) {
+      const parts = cleanDate.split('/');
       if (parts.length === 3) {
         const month = parts[0].padStart(2, '0');
         const day = parts[1].padStart(2, '0');
         let year = parts[2];
         
+        // Convert 2-digit year to 4-digit
         if (year.length === 2) {
-          year = `20${year}`;
+          const currentYear = new Date().getFullYear();
+          const currentCentury = Math.floor(currentYear / 100) * 100;
+          const yearNum = parseInt(year);
+          
+          // Assume years 00-30 are 2000s, 31-99 are 1900s
+          if (yearNum <= 30) {
+            year = `${currentCentury + yearNum}`;
+          } else {
+            year = `${currentCentury - 100 + yearNum}`;
+          }
         }
         
         return `${year}-${month}-${day}`;
       }
     }
     
-    return dateString;
+    // If already in YYYY-MM-DD format, return as is
+    if (/^\d{4}-\d{2}-\d{2}$/.test(cleanDate)) {
+      return cleanDate;
+    }
+    
+    return cleanDate;
   };
 
   const parseAdditionalImages = (value: any): string[] => {
@@ -152,69 +154,113 @@ const SpreadsheetUploadBlog = ({ onDataParsed, title, templateData }: Spreadshee
   };
 
   const parseCSV = (text: string) => {
-    const lines = text.split('\n').filter(line => line.trim());
-    if (lines.length === 0) return [];
-  
-    const firstLine = lines[0];
+    // Determine delimiter from the first line
+    const firstLineEnd = text.indexOf('\n');
+    const firstLine = firstLineEnd === -1 ? text : text.substring(0, firstLineEnd);
     const delimiter = firstLine.includes('\t') ? '\t' : ',';
     
-    const parseCSVLine = (line: string) => {
-      const result = [];
-      let inQuotes = false;
+    // More robust CSV parser that handles multi-line quoted fields
+    const parseCSVText = (csvText: string) => {
+      const rows: string[][] = [];
+      let currentRow: string[] = [];
       let currentField = '';
+      let inQuotes = false;
+      let i = 0;
       
-      for (let i = 0; i < line.length; i++) {
-        const char = line[i];
+      while (i < csvText.length) {
+        const char = csvText[i];
+        const nextChar = csvText[i + 1];
         
         if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === delimiter && !inQuotes) {
-          result.push(currentField);
+          if (inQuotes && nextChar === '"') {
+            // Escaped quote
+            currentField += '"';
+            i += 2;
+            continue;
+          } else {
+            // Toggle quote state
+            inQuotes = !inQuotes;
+          }
+        } else if (!inQuotes && char === delimiter) {
+          // End of field
+          currentRow.push(currentField.trim());
           currentField = '';
+        } else if (!inQuotes && (char === '\n' || char === '\r')) {
+          // End of row
+          if (currentField !== '' || currentRow.length > 0) {
+            currentRow.push(currentField.trim());
+            if (currentRow.some(field => field !== '')) {
+              rows.push(currentRow);
+            }
+            currentRow = [];
+            currentField = '';
+          }
+          // Skip \r\n combination
+          if (char === '\r' && nextChar === '\n') {
+            i++;
+          }
         } else {
           currentField += char;
         }
+        i++;
       }
       
-      result.push(currentField);
-      return result;
-    };
-  
-    const headers = parseCSVLine(firstLine).map(h => h.trim().replace(/"/g, ''));
-    const rows = lines.slice(1);
-  
-    return rows.map((row, index) => {
-      const values = parseCSVLine(row).map(v => v.trim().replace(/""/g, '"'));
-      const obj: any = {};
-      
-      headers.forEach((header, headerIndex) => {
-        let value = values[headerIndex] || '';
-        value = value.trim();
-        
-        if (header === 'price') {
-          const numericValue = value.replace(/[^0-9.]/g, '');
-          obj[header] = numericValue ? Math.round(parseFloat(numericValue)) : 0;
-        } else if (header === 'published' || header === 'show_on_homepage') {
-          obj[header] = value.toLowerCase() === 'true';
-        } else if (header === 'position') {
-          obj[header] = parseInt(value) || 0;
-        } else if (header === 'additional_images') {
-          obj[header] = parseAdditionalImages(value);
-        } else if (header === 'date_written') {
-          obj[header] = parseDate(value);
-        } else {
-          obj[header] = value;
+      // Handle last field/row
+      if (currentField !== '' || currentRow.length > 0) {
+        currentRow.push(currentField.trim());
+        if (currentRow.some(field => field !== '')) {
+          rows.push(currentRow);
         }
-      });
-      
-      if (!obj.published) {
-        obj.published = false;
       }
       
-      return obj;
-    }).filter(obj => {
-      return obj.title && obj.title.trim() !== '';
-    });
+      return rows;
+    };
+    
+    const rows = parseCSVText(text);
+    
+    if (rows.length <= 1) return [];
+    
+    const headers = rows[0].map(h => h.trim().replace(/^"|"$/g, ''));
+    const dataRows = rows.slice(1);
+    
+    return dataRows
+      .map((row, index) => {
+        const obj: any = {};
+        
+        headers.forEach((header, headerIndex) => {
+          let value = row[headerIndex] || '';
+          // Remove surrounding quotes if present
+          value = value.trim().replace(/^"|"$/g, '');
+          
+          if (header === 'price') {
+            const numericValue = value.replace(/[^0-9.]/g, '');
+            obj[header] = numericValue ? Math.round(parseFloat(numericValue)) : 0;
+          } else if (header === 'published' || header === 'show_on_homepage') {
+            obj[header] = value.toLowerCase() === 'true';
+          } else if (header === 'position') {
+            obj[header] = parseInt(value) || 0;
+          } else if (header === 'additional_images') {
+            obj[header] = parseAdditionalImages(value);
+          } else if (header === 'date_written') {
+            obj[header] = parseDate(value);
+          } else {
+            obj[header] = value;
+          }
+        });
+        
+        if (!obj.published) obj.published = false;
+        
+        return obj;
+      })
+      .filter(obj => {
+        // Filter out rows that are completely empty or only have title
+        const hasContent = obj.title && obj.title.trim() !== '';
+        const hasMoreThanTitle = Object.keys(obj).some(key => 
+          key !== 'title' && obj[key] && 
+          (typeof obj[key] === 'string' ? obj[key].trim() !== '' : true)
+        );
+        return hasContent && hasMoreThanTitle;
+      });
   };
 
   const validateData = (data: any[]) => {
@@ -222,31 +268,50 @@ const SpreadsheetUploadBlog = ({ onDataParsed, title, templateData }: Spreadshee
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     
     data.forEach((row, index) => {
-      if (!row.title || row.title.trim() === '') {
-        errors.push(`Row ${index + 1}: Title is required`);
+      // Skip validation if this is an empty row (no title)
+      if (!row.title || row.title.trim() === '') return;
+
+      // Validate main image URL (only if it exists and isn't empty)
+      if (row.image && typeof row.image === 'string' && row.image.trim() !== '') {
+        const imageUrl = row.image.trim();
+        if (!/^https?:\/\/.+/i.test(imageUrl)) {
+          errors.push(`Row ${index + 1}: Image must be a valid URL starting with http or https (found: "${imageUrl}")`);
+        }
       }
-      
-      if (row.image && row.image.trim() !== '' && !row.image.startsWith('http')) {
-        errors.push(`Row ${index + 1}: Image must be a valid URL starting with http`);
+        
+      // Validate author image URL (only if it exists and isn't empty)
+      if (row.author_image && row.author_image.trim() !== '') {
+        const authorImageUrl = row.author_image.trim();
+        if (!/^https?:\/\/.+/i.test(authorImageUrl)) {
+          errors.push(`Row ${index + 1}: Author image must be a valid URL starting with http or https (found: "${authorImageUrl}")`);
+        }
       }
-      
-      if (row.author_image && row.author_image.trim() !== '' && !row.author_image.startsWith('http')) {
-        errors.push(`Row ${index + 1}: Author image must be a valid URL starting with http`);
-      }
-      
+        
+      // Validate price
       if (row.price && isNaN(row.price)) {
         errors.push(`Row ${index + 1}: Invalid price value`);
       }
-      
-      if (row.date_written && row.date_written.trim() !== '' && !dateRegex.test(row.date_written)) {
-        errors.push(`Row ${index + 1}: Date written must be in YYYY-MM-DD format (found "${row.date_written}")`);
+        
+      // Validate date format
+      if (row.date_written && row.date_written.trim() !== '') {
+        const dateValue = row.date_written.trim();
+        if (!dateRegex.test(dateValue)) {
+          errors.push(`Row ${index + 1}: Date written must be in YYYY-MM-DD format (found: "${dateValue}")`);
+        }
       }
 
-      if (row.additional_images && !Array.isArray(row.additional_images)) {
-        errors.push(`Row ${index + 1}: Additional images must be a semicolon-separated string`);
+      // Validate additional images
+      if (row.additional_images) {
+        if (Array.isArray(row.additional_images)) {
+          row.additional_images.forEach((img: string, imgIndex: number) => {
+            if (img && img.trim() !== '' && !/^https?:\/\/.+/i.test(img.trim())) {
+              errors.push(`Row ${index + 1}: Additional image ${imgIndex + 1} must be a valid URL starting with http or https`);
+            }
+          });
+        }
       }
     });
-    
+      
     return errors;
   };
 
@@ -298,7 +363,6 @@ const SpreadsheetUploadBlog = ({ onDataParsed, title, templateData }: Spreadshee
         return;
       }
 
-      // Ensure additional_images is properly formatted before passing to parent
       const processedData = data.map(item => ({
         ...item,
         additional_images: Array.isArray(item.additional_images) 

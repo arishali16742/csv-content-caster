@@ -54,6 +54,7 @@ const steps = [
 
 const Visa: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
+  const [showContactPopup, setShowContactPopup] = useState(false);
   const [members, setMembers] = useState(1);
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
@@ -84,15 +85,28 @@ const Visa: React.FC = () => {
     loadVisaRates();
   }, []);
 
-  const handleCardClick = () => setShowForm(true);
+  const handleCardClick = (index: number) => {
+    if (index === 0) {
+      setShowContactPopup(true);
+    } else {
+      setShowForm(true);
+    }
+  };
 
   const handleClose = () => {
     setShowForm(false);
+    setShowContactPopup(false);
     setOrigin("");
     setDestination("");
     setDuration(durations[0]);
     setVisitType("Single Visit");
     setMembers(1);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setShowForm(false);
+    setShowContactPopup(true);
   };
 
   const increaseMembers = () => setMembers(members + 1);
@@ -117,38 +131,35 @@ const Visa: React.FC = () => {
             Information
           </span>
         </h2>
-        <p className="text-sm md:text-lg lg:text-xl text-gray-600 max-w-3xl mx-auto px-4">
+        <p className="text-xs md:text-lg lg:text-xl text-gray-600 max-w-3xl mx-auto px-4">
           Booking a trip is no longer difficult! With TravelGenz, enjoy a
           seamless and hassle-free visa process.
           <br />
           <br />
         </p>
 
-        {/* Mobile View */}
-        <div className="lg:hidden overflow-x-auto pb-4">
-          <div className="flex space-x-4 w-max mx-auto">
-            {steps.map(({ icon, title, description }, idx) => (
-              <div
-                key={idx}
-                className="bg-white p-3 rounded-xl shadow-lg flex flex-col items-center text-center cursor-pointer transition-colors duration-300 hover:bg-pink-50"
-                style={{ minWidth: '180px' }}
-                onClick={handleCardClick}
-              >
-                <div className="mb-2">{icon}</div>
-                <h3 className="text-sm font-semibold mb-1">{title}</h3>
-                <p className="text-gray-600 text-xs">{description}</p>
-              </div>
-            ))}
-          </div>
+        {/* Mobile View - Compact Version */}
+        <div className="lg:hidden grid grid-cols-2 gap-3">
+          {steps.map(({ icon, title, description }, idx) => (
+            <div
+              key={idx}
+              className="bg-white p-2 rounded-lg shadow-sm flex flex-col items-center text-center cursor-pointer transition-colors duration-300 hover:bg-pink-50"
+              onClick={() => handleCardClick(idx)}
+            >
+              <div className="w-8 h-8 mb-1">{React.cloneElement(icon, { className: "w-6 h-6 text-primary-500" })}</div>
+              <h3 className="text-xs font-semibold mb-0.5">{title}</h3>
+              <p className="text-gray-600 text-[10px] leading-tight">{description}</p>
+            </div>
+          ))}
         </div>
 
-        {/* Desktop View */}
+        {/* Desktop View - Unchanged */}
         <div className="hidden lg:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 lg:gap-10 max-w-7xl mx-auto">
           {steps.map(({ icon, title, description }, idx) => (
             <div
               key={idx}
               className="bg-white p-4 md:p-6 rounded-xl shadow-lg flex flex-col items-center text-center cursor-pointer transition-colors duration-300 hover:bg-pink-50"
-              onClick={handleCardClick}
+              onClick={() => handleCardClick(idx)}
             >
               <div className="mb-3 md:mb-4">{icon}</div>
               <h3 className="text-lg md:text-xl font-semibold mb-2">{title}</h3>
@@ -158,6 +169,7 @@ const Visa: React.FC = () => {
         </div>
       </div>
 
+      {/* Visa Form Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div
@@ -167,15 +179,14 @@ const Visa: React.FC = () => {
             }}
           >
             <button
-              className="absolute top-[1.75rem] right-3 text-gray-500 hover:text-red-500"
-
+              className="absolute top-4 right-4 text-gray-500 hover:text-red-500"
               onClick={handleClose}
               aria-label="Close form"
             >
               <X className="w-6 h-6" />
             </button>
 
-            <form className="flex-1 space-y-4 md:space-y-6">
+            <form onSubmit={handleSubmit} className="flex-1 space-y-4 md:space-y-6">
               <h3 className="text-xl md:text-2xl font-bold mb-4 md:mb-6 text-center bg-gradient-to-r from-[#f857a6] to-[#a75fff] bg-clip-text text-transparent">
                 Visa Application Form
               </h3>
@@ -275,7 +286,7 @@ const Visa: React.FC = () => {
                 type="submit"
                 className="w-full mt-3 md:mt-4 bg-gradient-to-r from-[#f857a6] to-[#a75fff] hover:opacity-90 text-white py-2.5 md:py-3 px-4 rounded-md shadow-md transition-all duration-300 text-sm md:text-base"
               >
-                Submit Application
+                Contact Us
               </button>
             </form>
 
@@ -342,6 +353,54 @@ const Visa: React.FC = () => {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Contact Popup */}
+      {showContactPopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl flex flex-col md:flex-row max-w-[95vw] md:max-w-xl w-full relative">
+            <button
+              className="absolute top-3 right-3 text-gray-500 hover:text-red-500"
+              onClick={handleClose}
+              aria-label="Close popup"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="w-full md:w-1/2 bg-blue-50 p-6 flex flex-col items-center justify-center">
+              <div className="bg-blue-100 p-4 rounded-full mb-4">
+                <Phone className="w-8 h-8 text-blue-600" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-800 mb-1">Call Us Now</h3>
+              <p className="text-gray-600 text-sm mb-4 text-center">Our visa experts are ready to assist you</p>
+              <a 
+                href="tel:9910565588" 
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-full text-sm transition-colors"
+              >
+                9910565588
+              </a>
+            </div>
+
+            <div className="w-full md:w-1/2 p-6 flex flex-col justify-center">
+              <h3 className="text-xl font-bold text-gray-800 mb-2">Need Help?</h3>
+              <p className="text-gray-600 text-sm mb-4">
+                Contact our visa specialists for personalized assistance with your application.
+              </p>
+              <div className="space-y-3">
+                <div className="flex items-center">
+                  <Phone className="w-4 h-4 text-blue-600 mr-2" />
+                  <span className="text-sm">+91 9910565588</span>
+                </div>
+                <div className="flex items-center">
+                  <svg className="w-4 h-4 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  <span className="text-sm">info@travelgenz.com</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

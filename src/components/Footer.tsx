@@ -10,7 +10,11 @@ const Footer = () => {
           <div>
             <div className="flex items-center gap-2 mb-4">
               <Plane className="h-5 w-5 md:h-6 md:w-6 text-travel-primary" strokeWidth={2} />
-              <span className="font-bold text-xl md:text-2xl text-white">TravelGenZ</span>
+              <img 
+  src="https://iili.io/F4wFNHl.png" 
+  alt="TravelGenZ Logo"
+  className="h-[10rem] md:h-[8.5rem]"
+/>
             </div>
             <p className="text-gray-400 mb-4 text-sm md:text-base">
               Luxury travel experiences at prices that won't break the bank.

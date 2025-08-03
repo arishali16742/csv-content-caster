@@ -140,9 +140,10 @@ const CounterSection = () => {
           <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
             Our Achievements
           </h2>
-          <p className="text-sm md:text-base text-gray-200">
-            Trusted by thousands of travelers worldwide
-          </p>
+          <p className="text-sm md:text-base text-gray-200 italic font-serif">
+  For Us: Every stamp tells a story
+</p>
+
         </div>
         
         <div className="flex flex-nowrap md:grid md:grid-cols-3 gap-3 md:gap-6 overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0">

@@ -258,7 +258,7 @@ const DiscountWheel = () => {
             viewport={{ once: true }}
             className="text-base md:text-lg lg:text-xl text-gray-600 max-w-3xl mx-auto px-4"
           >
-            Spin once daily for exclusive travel discounts and save on your next adventure!
+            🎉 Spin the globe daily — unlock deals for your next big escape!
           </motion.p>
         </div>
 

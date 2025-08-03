@@ -29,8 +29,8 @@ const CallToAction = () => {
           ✈️
         </h2>
         <p className="text-base md:text-lg lg:text-xl mb-6 md:mb-8 opacity-90 px-4">
-          Join thousands of Gen Z travelers who've discovered luxury travel at unbeatable prices.
-          Start planning your dream trip today!
+         Luxury travel isn’t just for the elite anymore. Passport Adventures made it affordable — now it’s your turn!
+         <br /> Start planning your dream trip today!
         </p>
         
         <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center px-4">

@@ -76,7 +76,7 @@ const TripComparison: React.FC = () => {
             viewport={{ once: true }}
             className="text-base md:text-lg lg:text-xl text-gray-600 max-w-[62rem] mx-auto px-4"
           >
-            Found a trip on another site? Enter the details below and see how much you'll save booking with TravelGenZ!
+            Found a trip on another site? Enter the details below and see how much you'll save booking with Passport Adventures!
           </motion.p>
         </div>
 

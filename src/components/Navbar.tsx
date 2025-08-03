@@ -86,13 +86,12 @@ const Navbar = () => {
   };
 
   const getLogoClasses = () => {
-    if (isHomePage) {
-      return `flex-shrink-0 font-bold text-lg md:text-xl ${
-        isScrolled ? 'text-travel-primary' : 'text-white'
-      }`;
-    }
-    return 'flex-shrink-0 font-bold text-lg md:text-xl text-travel-primary';
-  };
+  if (isHomePage) {
+    return `flex-shrink-0 ${isScrolled ? 'h-20' : 'h-[12rem] mt-12'}`;
+
+  }
+  return 'flex-shrink-0 h-24';
+};
 
   const getButtonClasses = () => {
     if (isHomePage && !isScrolled) {
@@ -118,9 +117,13 @@ const Navbar = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 md:h-16">
             <div className="flex items-center">
-              <Link to="/" className={getLogoClasses()}>
-                TravelGenZ
-              </Link>
+              <Link to="/" className="flex items-center">
+  <img 
+    src="https://iili.io/F4wFNHl.png" 
+    alt="Passport Adventures Logo"
+    className={getLogoClasses()}
+  />
+</Link>
             </div>
             
             <div className="hidden lg:flex items-center space-x-6 lg:space-x-8">

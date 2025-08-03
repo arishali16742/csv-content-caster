@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -84,7 +83,6 @@ const BlogPost = () => {
   };
 
   const formatItinerary = (itinerary: string) => {
-    // Split by day markers and clean up
     const dayPattern = /📅\s*Day\s*\d+:/gi;
     const parts = itinerary.split(dayPattern);
     const dayHeaders = itinerary.match(dayPattern) || [];
@@ -95,7 +93,6 @@ const BlogPost = () => {
       const dayHeader = dayHeaders[i - 1];
       const dayContent = parts[i].trim();
       
-      // Parse the day content
       const lines = dayContent.split('\n').filter(line => line.trim());
       let dayTitle = '';
       let activities = [];
@@ -106,7 +103,7 @@ const BlogPost = () => {
         if (trimmedLine.includes('–') && !dayTitle) {
           dayTitle = trimmedLine;
         } else if (trimmedLine.startsWith('Activities:') || trimmedLine.startsWith('Activity:')) {
-          continue; // Skip the "Activities:" header
+          continue;
         } else if (trimmedLine.startsWith('Overnight Stay:')) {
           overnight = trimmedLine.replace('Overnight Stay:', '').trim();
         } else if (trimmedLine.startsWith('Morning:') || trimmedLine.startsWith('Arrival:') || trimmedLine.startsWith('En Route:')) {
@@ -168,7 +165,7 @@ const BlogPost = () => {
     if (validImages.length === 0) return null;
 
     return (
-      <div className="w-full">
+      <div className="w-full mt-8">
         <div className="grid grid-cols-12 gap-4 h-96">
           {validImages.map((img, index) => {
             let className = "";
@@ -185,7 +182,7 @@ const BlogPost = () => {
             }
 
             return (
-              <div key={index} className={className}>
+              <div key={index} className={`${className} overflow-hidden`}>
                 <img 
                   src={img} 
                   alt={`Gallery ${index + 1}`}
@@ -274,7 +271,6 @@ const BlogPost = () => {
             </div>
           </div>
           
-          {/* Price Badge in Top Right */}
           {post.price && (
             <motion.div
               initial={{ opacity: 0, x: 20 }}
@@ -348,7 +344,7 @@ const BlogPost = () => {
                 </div>
               </motion.div>
 
-              {/* Excerpt Section - Standalone */}
+              {/* Excerpt Section */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -360,46 +356,43 @@ const BlogPost = () => {
                 </div>
               </motion.div>
 
-              {/* Gallery Section - Completely Standalone */}
-              {post.additional_images && post.additional_images.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.5 }}
-                  className="mb-20"
-                >
-                  <div className="text-center mb-8">
-                    <h3 className="text-2xl font-bold text-gray-900 mb-4">Photo Gallery</h3>
-                    <div className="w-24 h-1 bg-blue-600 mx-auto"></div>
-                  </div>
-                  <div className="bg-gray-50 p-6 rounded-lg">
-                    {renderImageLayout(post.additional_images)}
-                  </div>
-                </motion.div>
-              )}
-              
-              {/* Main Content Section - Completely Standalone */}
+              {/* Main Content Section */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.6 }}
-                className="mb-20"
+                transition={{ duration: 0.5, delay: 0.5 }}
+                className="mb-16"
               >
                 <div className="bg-white border rounded-lg p-8 shadow-sm">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-6">Article Details</h2>
                   <div className="prose prose-lg max-w-none space-y-8">
                     {formatContent(post.content)}
                   </div>
                 </div>
               </motion.div>
 
-              {/* Itinerary Section - Completely Standalone */}
+              {/* Gallery Section */}
+              {post.additional_images && post.additional_images.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.6 }}
+                  className="mb-16"
+                >
+                  <div className="text-center mb-8">
+                    <h3 className="text-2xl font-bold text-gray-900 mb-4">Photo Gallery</h3>
+                    <div className="w-24 h-1 bg-blue-600 mx-auto"></div>
+                  </div>
+                  {renderImageLayout(post.additional_images)}
+                </motion.div>
+              )}
+              
+              {/* Itinerary Section */}
               {post.itinerary && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.7 }}
-                  className="mb-20"
+                  className="mb-16"
                 >
                   <div className="text-center mb-12">
                     <div className="inline-flex items-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-full shadow-lg">
@@ -414,7 +407,7 @@ const BlogPost = () => {
                 </motion.div>
               )}
 
-              {/* Pro Tip Section - Standalone */}
+              {/* Pro Tip Section */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -431,7 +424,7 @@ const BlogPost = () => {
                 </div>
               </motion.div>
 
-              {/* Call to Action - Standalone */}
+              {/* Call to Action */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

@@ -113,7 +113,7 @@ const TravelInspiration = () => {
             className="inline-flex items-center bg-white px-3 md:px-4 py-1.5 md:py-2 rounded-full shadow-sm mb-3 md:mb-4"
           >
             <Sparkles className="h-4 w-4 md:h-5 md:w-5 text-accent-500 mr-1.5 md:mr-2" />
-            <span className="text-gray-700 font-medium text-sm md:text-base">Expert Travel Content</span>
+            <span className="text-gray-700 font-medium text-sm md:text-base">Because every trip leaves footprints on the heart❤️</span>
           </motion.div>
           <motion.h2 
             initial={{ opacity: 0, y: 20 }}
