@@ -85,13 +85,14 @@ const Navbar = () => {
   };
 
   const getLogoClasses = () => {
-    if (isHomePage) {
+   if (isHomePage) {
   return `flex-shrink-0 ${
     isScrolled 
-      ? 'h-[7rem] md:h-32 md:mt-16' 
-      : 'h-[14rem] mt-16 md:h-[14rem] md:mt-16'
+      ? 'h-[7rem] mt-[2rem] ml-[-1rem] md:h-32 md:mt-16 md:ml-0' 
+      : 'h-[9rem] mt-[1.5rem] ml-[-1rem] md:h-[14rem] md:mt-16 md:ml-0'
   }`;
 }
+
 
     return 'flex-shrink-0 h-16 md:h-24';
   };
