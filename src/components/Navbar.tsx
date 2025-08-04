@@ -86,8 +86,13 @@ const Navbar = () => {
 
   const getLogoClasses = () => {
     if (isHomePage) {
-      return `flex-shrink-0 ${isScrolled ? 'h-16 md:h-28' : 'h-24 md:h-[14rem] md:mt-12'}`;
-    }
+  return `flex-shrink-0 ${
+    isScrolled 
+      ? 'h-[7rem] md:h-32 md:mt-16' 
+      : 'h-[14rem] mt-16 md:h-[14rem] md:mt-16'
+  }`;
+}
+
     return 'flex-shrink-0 h-16 md:h-24';
   };
 
