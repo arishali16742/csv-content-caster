@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Menu, X, User, LogOut, ShoppingCart, Activity } from 'lucide-react';
@@ -86,12 +85,11 @@ const Navbar = () => {
   };
 
   const getLogoClasses = () => {
-  if (isHomePage) {
-    return `flex-shrink-0 ${isScrolled ? 'h-20' : 'h-[12rem] mt-12'}`;
-
-  }
-  return 'flex-shrink-0 h-24';
-};
+    if (isHomePage) {
+      return `flex-shrink-0 ${isScrolled ? 'h-16 md:h-28' : 'h-24 md:h-[14rem] md:mt-12'}`;
+    }
+    return 'flex-shrink-0 h-16 md:h-24';
+  };
 
   const getButtonClasses = () => {
     if (isHomePage && !isScrolled) {
@@ -116,26 +114,20 @@ const Navbar = () => {
       <nav className={getNavbarClasses()}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 md:h-16">
-            <div className="flex items-center">
+            <div className="flex items-center flex-shrink-0">
               <Link to="/" className="flex items-center">
-  <img 
-    src="https://iili.io/F4wFNHl.png" 
-    alt="Passport Adventures Logo"
-    className={getLogoClasses()}
-  />
-</Link>
+                <img 
+                  src="https://iili.io/F4wFNHl.png" 
+                  alt="Passport Adventures Logo"
+                  className={getLogoClasses()}
+                />
+              </Link>
             </div>
             
             <div className="hidden lg:flex items-center space-x-6 lg:space-x-8">
               <button onClick={() => handleNavigation('/')} className={getLinkClasses()}>
                 Home
               </button>
-              {/* <button onClick={() => handleNavigation('/flights')} className={getLinkClasses()}>
-                Flights
-              </button>
-              <button onClick={() => handleNavigation('/hotels')} className={getLinkClasses()}>
-                Hotels
-              </button> */}
               <button onClick={() => handleNavigation('/packages')} className={getLinkClasses()}>
                 Packages
               </button>
@@ -146,14 +138,12 @@ const Navbar = () => {
                 Price Comparison
               </button>
               
-              {/* Cart for authenticated users */}
               {isAuthenticated && (
                 <button onClick={() => handleNavigation('/cart')} className={getLinkClasses()}>
                   <ShoppingCart className="h-5 w-5" />
                 </button>
               )}
               
-              {/* Admin links */}
               {isAuthenticated && isAdmin && (
                 <>
                   <button onClick={() => handleNavigation('/dashboard')} className={getLinkClasses()}>
@@ -165,7 +155,6 @@ const Navbar = () => {
                 </>
               )}
               
-              {/* Auth buttons */}
               {isAuthenticated ? (
                 <div className="flex items-center space-x-2">
                   <div className="flex items-center space-x-2">
@@ -190,7 +179,15 @@ const Navbar = () => {
               )}
             </div>
 
-            <div className="-mr-2 flex lg:hidden">
+            <div className="lg:hidden flex items-center">
+              {isAuthenticated && (
+                <button 
+                  onClick={() => handleNavigation('/cart')} 
+                  className="mr-4 text-gray-700 hover:text-travel-primary"
+                >
+                  <ShoppingCart className="h-6 w-6" />
+                </button>
+              )}
               <button
                 onClick={toggleMenu}
                 type="button"
@@ -224,14 +221,12 @@ const Navbar = () => {
               Price Comparison
             </button>
             
-            {/* Mobile cart */}
             {isAuthenticated && (
               <button onClick={() => handleNavigation('/cart')} className="nav-link block text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-md text-base font-medium">
                 Cart
               </button>
             )}
             
-            {/* Mobile admin links */}
             {isAuthenticated && isAdmin && (
               <>
                 <button onClick={() => handleNavigation('/dashboard')} className="nav-link block text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-md text-base font-medium">
@@ -243,7 +238,6 @@ const Navbar = () => {
               </>
             )}
             
-            {/* Mobile auth buttons */}
             {isAuthenticated ? (
               <div className="px-3 py-2">
                 <div className="flex items-center justify-between">
