@@ -60,7 +60,7 @@ const MobileDetector = () => {
           <div className="bg-gradient-to-r from-travel-primary/10 to-travel-secondary/10 rounded-lg p-4">
             <Monitor className="h-12 w-12 mx-auto mb-2 text-travel-primary" />
             <p className="text-sm text-gray-600">
-              For the best experience with all features, we recommend viewing TravelGenZ on a desktop or tablet.
+              For the best experience with all features, we recommend viewing PassportAdventures on a desktop or tablet.
             </p>
           </div>
           

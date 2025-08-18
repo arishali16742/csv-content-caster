@@ -184,8 +184,35 @@ const PackageDetail = () => {
   const [visaDuration, setVisaDuration] = useState('15 Days');
   const [visaMembers, setVisaMembers] = useState(1);
   const [addedVisaCost, setAddedVisaCost] = useState(0);
-  const [isMobile, setIsMobile] = useState(false);
+const [isMobile, setIsMobile] = useState(false);
 
+// Move images declaration here so it's available for useEffect below
+const images = packageData?.gallery_images && packageData.gallery_images.length > 0 
+  ? packageData.gallery_images 
+  : [packageData?.image].filter(Boolean);
+
+useEffect(() => {
+  if (images.length <= 1) return;
+
+  const interval = setInterval(() => {
+    setCurrentImageIndex((prev) => (prev + 1) % images.length);
+  }, 2000);
+
+  return () => clearInterval(interval);
+}, [images.length]);
+
+
+useEffect(() => {
+  if (packageData?.duration) {
+    // Extract the number of days from "3 Days / 2 Nights" format
+    const daysMatch = packageData.duration.match(/^(\d+)\s*Days/i);
+    if (daysMatch && daysMatch[1]) {
+      setSelectedDuration(daysMatch[1]);
+    }
+  }
+}, [packageData]);
+  
+  
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -849,7 +876,7 @@ const PackageDetail = () => {
     
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.text('Email: info@travelgenz.com', margin, yPosition + 20);
+        doc.text('Email: info@travelgenz.com', margin, yPosition + 20);
     doc.text('Phone: +1 (555) 123-4567', margin, yPosition + 30);
     
     doc.save(`${packageData?.title.replace(/\s+/g, '_') || 'TravelGenz_Itinerary'}.pdf`);
@@ -910,9 +937,7 @@ const PackageDetail = () => {
     );
   }
 
-  const images = packageData.gallery_images && packageData.gallery_images.length > 0 
-    ? packageData.gallery_images 
-    : [packageData.image].filter(Boolean);
+  /* images variable already declared above, do not redeclare here */
 
   const currentItinerary = packageDetails?.itinerary?.[selectedDuration] || [];
   const totalVisaCost = calculateVisaCost() * visaMembers;
@@ -932,126 +957,145 @@ const PackageDetail = () => {
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            
           </div>
         </div>
 
-        <div className="relative">
-          <div className="h-[16rem] md:!h-[36rem] lg:h-96 relative overflow-hidden">
+        <div className="relative max-w-7xl mx-auto px-4 py-4 md:pt-6 md:pb-0">
 
+      {/* Dynamic blurred background */}
+      <div
+        className="absolute inset-0 -z-10 bg-center bg-cover scale-110 blur-lg opacity-20 rounded-xl"
+        style={{ backgroundImage: `url(${images[currentImageIndex]})` }}
+      ></div>
 
+      {/* Combined Card */}
+      <div className="relative grid grid-cols-1 lg:grid-cols-2 bg-white/90 backdrop-blur-sm rounded-xl overflow-hidden shadow-lg">
+        {/* Left Side - Package Info */}
+        <div className="p-4 md:p-6">
+          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold mb-2 text-gray-900 line-clamp-2">
+            {packageData.title}
+          </h1>
 
-            <img 
-              src={packageDetails?.hero_image || packageData.image}
-              alt={packageData.title}
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-black bg-opacity-10"></div>
-            
-            <div className="hidden lg:block absolute top-4 left-4">
-              <Button
-                variant="secondary"
-                onClick={() => navigate('/packages')}
-                className="bg-white/90 hover:bg-white"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Packages
-              </Button>
+          <div className="flex flex-wrap items-center gap-2 md:gap-3 text-xs md:text-sm text-gray-700 mb-3">
+            <div className="flex items-center gap-1">
+              <MapPin className="h-3 w-3 md:h-4 md:w-4" />
+              <span>{packageData.country}</span>
             </div>
-
-            <div className="hidden lg:block absolute top-4 right-4">
-             
+            <div className="flex items-center gap-1">
+              <Clock className="h-3 w-3 md:h-4 md:w-4" />
+              <span>{packageData.duration}</span>
             </div>
+            <div className="flex items-center gap-1">
+              <Star className="h-3 w-3 md:h-4 md:w-4 text-yellow-400 fill-current" />
+              <span>{packageData.rating}</span>
+            </div>
+          </div>
 
-            {images.length > 1 && (
-              <>
-                
-                
-               
-              </>
-            )}
+          <div className="mb-[1.75rem]">
 
-            {images.length > 1 && (
+            <h3 className="font-semibold mb-1 text-xs md:text-sm">Destinations</h3>
+            <div className="flex flex-wrap gap-1">
+              {packageData.destinations.map((destination, index) => (
+                <Badge key={index} variant="secondary" className="text-xs">
+                  {destination}
+                </Badge>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-1 md:gap-2 text-xs md:text-base">
+
+            <div className="flex items-center gap-1">
+              <span>🏨</span>
+              <span>{packageData.hotel_category || "3-4 Star"}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span>🍽️</span>
+              <span>{packageData.meals_included || "Breakfast"}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span>🚗</span>
+              <span>{packageData.transfer_included ? "Transfers" : "No Transfers"}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span>🎯</span>
+              <span>
+                {packageData.activity_details?.count ||
+                  packageDetails?.activity_details?.count ||
+                  0}{" "}
+                Activities
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Side - Main Image with Navigation */}
+        <div className="relative h-[250px] lg:h-[300px]">
+          <img
+            src={images[currentImageIndex]}
+            alt={packageData.title}
+            className="w-full h-full object-cover"
+          />
+
+          {images.length > 1 && (
+            <>
+              {/* Gallery Button */}
               <button
                 onClick={() => setShowGallery(true)}
-                className="absolute bottom-2 md:bottom-4 left-2 md:left-4 bg-white/90 hover:bg-white px-2 md:px-3 py-1 md:py-2 rounded-lg text-xs md:text-sm font-medium flex items-center gap-1 md:gap-2"
+                className="absolute top-3 right-3 bg-white/90 hover:bg-white px-3 py-1 rounded-lg text-xs font-medium flex items-center gap-1 shadow-md z-10"
               >
-                <Camera className="h-3 w-3 md:h-4 md:w-4" />
-                View Gallery ({images.length})
+                <Camera className="h-3 w-3" />
+                <span>Gallery ({images.length})</span>
               </button>
-            )}
-          </div>
-        </div>
 
+              {/* Navigation Arrows */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+                }}
+                className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1 md:p-2 z-10"
+              >
+                <ChevronLeft className="h-3 w-3 md:h-4 md:w-4" />
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCurrentImageIndex((prev) => (prev + 1) % images.length);
+                }}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1 md:p-2 z-10"
+              >
+                <ChevronRight className="h-3 w-3 md:h-4 md:w-4" />
+              </button>
+
+              {/* Auto-slide Dots */}
+              <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex gap-1 z-10">
+                {images.map((_, index) => (
+                  <button
+  key={index}
+  onClick={(e) => {
+    e.stopPropagation();
+    setCurrentImageIndex(index);
+  }}
+  className={`w-1.5 h-1.5 md:w-2 md:h-2 min-w-[11px] min-h-[11px] rounded-full transition-all ${
+    currentImageIndex === index ? "bg-white w-3 md:w-4" : "bg-white/50"
+  }`}
+/>
+
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+          
+
+        {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4 py-4 md:py-6 lg:py-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 lg:gap-8">
             <div className="lg:col-span-2 space-y-4 md:space-y-6">
-              <Card>
-                <CardContent className="p-4 md:p-6">
-                  <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-4 mb-4">
-                    <div className="flex-1">
-                      <h1 className="text-xl md:text-2xl lg:text-3xl font-bold mb-2 md:mb-3">{packageData.title}</h1>
-                      <div className="flex flex-wrap items-center gap-2 md:gap-4 text-sm md:text-base text-gray-600">
-                        <div className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3 md:h-4 md:w-4" />
-                          <span>{packageData.country}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3 md:h-4 md:w-4" />
-                          <span>{packageData.duration}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Star className="h-3 w-3 md:h-4 md:w-4 text-yellow-400 fill-current" />
-                          <span>{packageData.rating}</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="lg:hidden text-right">
-                      {packageData.original_price && (
-                        <span className="text-sm md:text-base text-red-500 line-through block">
-                          ₹{parseInt(packageData.original_price.replace(/[^0-9]/g, '')).toLocaleString()}
-                        </span>
-                      )}
-                      <div className="text-xl md:text-2xl font-bold text-green-600">
-                        ₹{parseInt(packageData.price.replace(/[^0-9]/g, '')).toLocaleString()}
-                        <span className="text-xs md:text-sm font-normal text-gray-500 block">per person</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mb-4">
-                    <h3 className="font-semibold mb-2 text-sm md:text-base">Destinations</h3>
-                    <div className="flex flex-wrap gap-1 md:gap-2">
-                      {packageData.destinations.map((destination, index) => (
-                        <Badge key={index} variant="secondary" className="text-xs md:text-sm">
-                          {destination}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 text-xs md:text-sm">
-                    <div className="flex items-center gap-1 md:gap-2">
-                      <span>🏨</span>
-                      <span>{packageData.hotel_category || '3-4 Star'}</span>
-                    </div>
-                    <div className="flex items-center gap-1 md:gap-2">
-                      <span>🍽️</span>
-                      <span>{packageData.meals_included || 'Breakfast'}</span>
-                    </div>
-                    <div className="flex items-center gap-1 md:gap-2">
-                      <span>🚗</span>
-                      <span>{packageData.transfer_included ? 'Transfers' : 'No Transfers'}</span>
-                    </div>
-                    <div className="flex items-center gap-1 md:gap-2">
-                      <span>🎯</span>
-                      <span>{(packageData.activity_details?.count || packageDetails?.activity_details?.count || 0)} Activities</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
               <Card>
                 <CardContent className="p-4 md:p-6">
                   <Tabs defaultValue="overview" className="w-full">
@@ -1105,73 +1149,63 @@ const PackageDetail = () => {
                     </TabsContent>
 
                     <TabsContent value="itinerary" className="mt-[4rem] md:mt-6">
-                      <div className="space-y-4 md:space-y-6">
-                        <div className="flex flex-wrap gap-2 md:gap-3">
-                          {['3', '5', '7'].map((duration) => (
-                            <Button
-                              key={duration}
-                              variant={selectedDuration === duration ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => setSelectedDuration(duration)}
-                              className="text-xs md:text-sm"
-                            >
-                              {duration} Days
-                            </Button>
-                          ))}
-                        </div>
+  <div className="space-y-4 md:space-y-6">
+    <div className="text-sm font-medium text-gray-700">
+      {selectedDuration} Days Itinerary
+    </div>
 
-                        {currentItinerary.length > 0 ? (
-                          <div className="space-y-3 md:space-y-4">
-                            {currentItinerary.map((day, index) => (
-                              <div key={index} className="border rounded-lg p-3 md:p-4 bg-white">
-                                <h4 className="font-semibold mb-2 text-sm md:text-base text-blue-600">
-                                  Day {day.day}: {day.title}
-                                </h4>
-                                
-                                {day.activities && day.activities.length > 0 && (
-                                  <div className="mb-3">
-                                    <h5 className="font-medium mb-1 text-xs md:text-sm">Activities:</h5>
-                                    <ul className="space-y-1">
-                                      {day.activities.map((activity, actIndex) => (
-                                        <li key={actIndex} className="text-xs md:text-sm text-gray-600 flex items-start gap-2">
-                                          <span className="text-blue-500 mt-1">•</span>
-                                          <span>{activity}</span>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                )}
+    {currentItinerary.length > 0 ? (
+      <div className="space-y-3 md:space-y-4">
+        {currentItinerary.map((day, index) => (
+          <div key={index} className="border rounded-lg p-3 md:p-4 bg-white">
+            <h4 className="font-semibold mb-2 text-sm md:text-base text-blue-600">
+              Day {day.day}: {day.title}
+            </h4>
+            
+            {day.activities && day.activities.length > 0 && (
+              <div className="mb-3">
+                <h5 className="font-medium mb-1 text-xs md:text-sm">Activities:</h5>
+                <ul className="space-y-1">
+                  {day.activities.map((activity, actIndex) => (
+                    <li key={actIndex} className="text-xs md:text-sm text-gray-600 flex items-start gap-2">
+                      <span className="text-blue-500 mt-1">•</span>
+                      <span>{activity}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 text-xs md:text-sm">
-                                  {day.accommodation && (
-                                    <div>
-                                      <span className="font-medium">🏨 Stay:</span>
-                                      <span className="ml-1">{day.accommodation}</span>
-                                    </div>
-                                  )}
-                                  {day.breakfast && (
-                                    <div>
-                                      <span className="font-medium">🍳 Breakfast:</span>
-                                      <span className="ml-1">{day.breakfast}</span>
-                                    </div>
-                                  )}
-                                  {day.dinner && (
-                                    <div>
-                                      <span className="font-medium">🍽️ Dinner:</span>
-                                      <span className="ml-1">{day.dinner}</span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-center py-6 md:py-8 text-gray-500">
-                            <p className="text-sm md:text-base">Detailed itinerary will be provided upon booking.</p>
-                          </div>
-                        )}
-                      </div>
-                    </TabsContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 text-xs md:text-sm">
+              {day.accommodation && (
+                <div>
+                  <span className="font-medium">🏨 Stay:</span>
+                  <span className="ml-1">{day.accommodation}</span>
+                </div>
+              )}
+              {day.breakfast && (
+                <div>
+                  <span className="font-medium">🍳 Breakfast:</span>
+                  <span className="ml-1">{day.breakfast}</span>
+                </div>
+              )}
+              {/* {day.dinner && (
+                <div>
+                  <span className="font-medium">🍽️ Dinner:</span>
+                  <span className="ml-1">{day.dinner}</span>
+                </div>
+              )} */}
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <div className="text-center py-6 md:py-8 text-gray-500">
+        <p className="text-sm md:text-base">Detailed itinerary will be provided upon booking.</p>
+      </div>
+    )}
+  </div>
+</TabsContent>
 
                     <TabsContent value="inclusions" className="mt-[4rem] md:mt-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
@@ -1427,21 +1461,11 @@ const PackageDetail = () => {
                   </CardHeader>
                   <CardContent className="space-y-4 md:space-y-6">
                     <div>
-                      <label className="block text-sm font-medium mb-2">Duration</label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {['3', '5', '7'].map((duration) => (
-                          <Button
-                            key={duration}
-                            variant={selectedDuration === duration ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setSelectedDuration(duration)}
-                            className="text-xs md:text-sm"
-                          >
-                            {duration} Days
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
+  <label className="block text-sm font-medium mb-2">Duration</label>
+  <div className="border rounded-lg px-3 py-2 bg-gray-50 text-sm">
+    {selectedDuration} Days
+  </div>
+</div>
 
                     <div>
                       <label className="block text-sm font-medium mb-2">Travel Date</label>
@@ -1506,21 +1530,31 @@ const PackageDetail = () => {
                     </div>
 
                     <div className="border-t pt-4 space-y-2">
-                      <div className="flex justify-between text-sm md:text-base">
-                        <span>Package ({selectedDuration} days × {members} {members === 1 ? 'person' : 'people'})</span>
-                        <span>₹{(getCurrentPrice() * members).toLocaleString()}</span>
-                      </div>
-                      {addedVisaCost > 0 && (
-                        <div className="flex justify-between text-sm md:text-base">
-                          <span>Visa Assistance</span>
-                          <span>₹{addedVisaCost.toLocaleString()}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between font-bold text-base md:text-lg border-t pt-2">
-                        <span>Total</span>
-                        <span className="text-green-600">₹{getTotalPrice().toLocaleString()}</span>
-                      </div>
-                    </div>
+  {packageData.original_price && (
+    <div className="flex justify-between text-sm md:text-base text-gray-500">
+      <span>Original Price:</span>
+      <span className="line-through">
+        ₹{(parseInt(packageData.original_price.replace(/[^0-9]/g, '')) < getCurrentPrice() 
+           ? parseInt(packageData.original_price.replace(/[^0-9]/g, '')) + 15000 
+           : parseInt(packageData.original_price.replace(/[^0-9]/g, ''))).toLocaleString()}
+      </span>
+    </div>
+  )}
+  <div className="flex justify-between text-sm md:text-base">
+    <span>Package ({selectedDuration} days × {members} {members === 1 ? 'person' : 'people'})</span>
+    <span>₹{(getCurrentPrice() * members).toLocaleString()}</span>
+  </div>
+  {addedVisaCost > 0 && (
+    <div className="flex justify-between text-sm md:text-base">
+      <span>Visa Assistance</span>
+      <span>₹{addedVisaCost.toLocaleString()}</span>
+    </div>
+  )}
+  <div className="flex justify-between font-bold text-base md:text-lg border-t pt-2">
+    <span>Total</span>
+    <span className="text-green-600">₹{getTotalPrice().toLocaleString()}</span>
+  </div>
+</div>
 
                     <div className="space-y-2 md:space-y-3">
                       <Button 
@@ -1551,46 +1585,117 @@ const PackageDetail = () => {
         </div>
 
         {showGallery && (
-          <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4">
-            <div className="relative max-w-4xl w-full">
-              <button
-                onClick={() => setShowGallery(false)}
-                className="absolute top-2 md:top-4 right-2 md:right-4 text-white hover:text-gray-300 z-10"
-              >
-                <X className="h-6 w-6 md:h-8 md:w-8" />
-              </button>
-              
-              <div className="relative">
-                <img 
-                  src={images[currentImageIndex]}
-                  alt={`Gallery ${currentImageIndex + 1}`}
-                  className="w-full h-auto max-h-[70vh] md:max-h-[80vh] object-contain"
-                />
-                
-                {images.length > 1 && (
-                  <>
-                    <button
-                      onClick={prevImage}
-                      className="absolute left-2 md:left-4 top-1/2 transform -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white rounded-full p-2 md:p-3"
-                    >
-                      <ChevronLeft className="h-4 w-4 md:h-6 md:w-6" />
-                    </button>
-                    <button
-                      onClick={nextImage}
-                      className="absolute right-2 md:right-4 top-1/2 transform -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white rounded-full p-2 md:p-3"
-                    >
-                      <ChevronRight className="h-4 w-4 md:h-6 md:w-6" />
-                    </button>
-                  </>
-                )}
-                
-                <div className="absolute bottom-2 md:bottom-4 left-1/2 transform -translate-x-1/2 text-white text-xs md:text-sm">
-                  {currentImageIndex + 1} of {images.length}
-                </div>
+  <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4">
+    {/* Close Button - Moved outside the content container and given higher z-index */}
+    <button
+      onClick={() => setShowGallery(false)}
+      className="fixed top-4 right-4 z-50 text-white hover:text-gray-300 bg-black/50 rounded-full p-2"
+    >
+      <X className="h-6 w-6 md:h-8 md:w-8" />
+    </button>
+
+    <div className="relative max-w-6xl w-full h-full flex flex-col">
+      {/* Main Gallery Content */}
+      <div className="relative flex-1 flex items-center justify-center">
+        {/* Previous Image (Blurred) */}
+        <div className="absolute left-0 h-full w-1/4 max-w-[200px] flex items-center justify-center">
+          <div className="relative w-full h-3/4 overflow-hidden rounded-lg opacity-70 blur-sm">
+            <img 
+              src={images[(currentImageIndex - 1 + images.length) % images.length]}
+              alt={`Previous`}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        </div>
+
+        {/* Current Image */}
+        <motion.div
+          key={currentImageIndex}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+          className="relative z-10 w-full max-w-3xl h-full max-h-[80vh] flex items-center justify-center"
+        >
+          <img 
+            src={images[currentImageIndex]}
+            alt={`Gallery ${currentImageIndex + 1}`}
+            className="w-full h-full object-contain"
+          />
+        </motion.div>
+
+        {/* Next Image (Blurred) */}
+        <div className="absolute right-0 h-full w-1/4 max-w-[200px] flex items-center justify-center">
+          <div className="relative w-full h-3/4 overflow-hidden rounded-lg opacity-70 blur-sm">
+            <img 
+              src={images[(currentImageIndex + 1) % images.length]}
+              alt={`Next`}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        </div>
+
+        {/* Navigation Arrows */}
+        {images.length > 1 && (
+          <>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+              }}
+              className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 md:p-3 z-20"
+            >
+              <ChevronLeft className="h-6 w-6 md:h-8 md:w-8" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setCurrentImageIndex((prev) => (prev + 1) % images.length);
+              }}
+              className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 md:p-3 z-20"
+            >
+              <ChevronRight className="h-6 w-6 md:h-8 md:w-8" />
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Thumbnail Slider */}
+      {images.length > 1 && (
+        <div className="h-24 md:h-32 w-full mt-4 flex items-center justify-center">
+          <div className="relative w-full max-w-3xl h-full">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="thumbnails-container flex space-x-2 md:space-x-4 overflow-x-auto py-2 px-4 scrollbar-hide">
+                {images.map((img, index) => (
+                  <button
+                    key={index}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCurrentImageIndex(index);
+                    }}
+                    className={`thumbnail-${index} flex-shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden transition-all duration-200 ${
+                      currentImageIndex === index ? 'ring-2 md:ring-4 ring-travel-primary scale-105 md:scale-110' : 'opacity-70 hover:opacity-100'
+                    }`}
+                  >
+                    <img
+                      src={img}
+                      alt={`Thumbnail ${index + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                ))}
               </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
+
+      {/* Image Counter */}
+      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white text-sm md:text-base px-3 py-1 rounded-full z-20">
+        {currentImageIndex + 1} / {images.length}
+      </div>
+    </div>
+  </div>
+)}
 
         <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-3 md:p-4 z-40">
           <div className="flex items-center justify-between gap-3">

@@ -104,7 +104,8 @@ const Hero = () => {
 
           <div className="max-w-6xl mx-auto mb-6 md:mb-8 px-2">
             {isMobile ? (
-              <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-3 shadow-2xl">
+              <div className="bg-transparent backdrop-blur-sm rounded-2xl p-3 shadow-2xl">
+
                 <div className="space-y-3">
                   <div className="relative">
                     <input 
@@ -112,7 +113,8 @@ const Hero = () => {
                       placeholder="Where to? (e.g., Bali, Tokyo)" 
                       value={searchLocation} 
                       onChange={e => setSearchLocation(e.target.value)} 
-                      className="w-full px-4 py-3 rounded-xl border-0 outline-none text-gray-800 placeholder-gray-500 text-base" 
+                      className="w-full px-4 py-3 rounded-xl border-0 bg-transparent text-white placeholder-white/70 text-base justify-start text-left font-normal"
+
                     />
                   </div>
                   
@@ -145,7 +147,7 @@ const Hero = () => {
                   <div className="relative">
                     <Popover open={showGuestPopover} onOpenChange={setShowGuestPopover}>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full px-4 py-3 rounded-xl border-0 bg-transparent text-gray-800 text-base justify-start text-left font-normal">
+                        <Button variant="outline" className="w-full px-4 py-3 rounded-xl border-0 bg-transparent text-white text-base justify-start text-left font-normal">
                           <Users className="mr-2 h-4 w-4" />
                           {rooms} Room{rooms > 1 ? 's' : ''}, {guests} Guest{guests > 1 ? 's' : ''}
                         </Button>
@@ -182,7 +184,7 @@ const Hero = () => {
                   </div>
 
                   <div className="flex items-center justify-between px-2">
-                    <label className="flex items-center gap-2 text-gray-700 cursor-pointer text-sm">
+                    <label className="flex items-center gap-2 text-white cursor-pointer text-sm">
                       <input type="checkbox" checked={withFlights} onChange={e => setWithFlights(e.target.checked)} className="rounded border-gray-300" />
                       <span>With Flights</span>
                     </label>
@@ -193,7 +195,8 @@ const Hero = () => {
                 </div>
               </div>
             ) : (
-              <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 flex flex-row gap-3 shadow-2xl">
+              <div className="bg-transparent backdrop-blur-sm rounded-2xl p-4 flex flex-row gap-3 shadow-2xl">
+
                 <div className="flex-1 relative">
                   <input 
                     type="text" 
@@ -270,7 +273,7 @@ const Hero = () => {
                 </div>
 
                 <div className="flex items-center gap-2 px-4">
-                  <label className="flex items-center gap-2 text-gray-700 cursor-pointer text-sm">
+                  <label className="flex items-center gap-2 text-white cursor-pointer text-sm">
                     <input type="checkbox" checked={withFlights} onChange={e => setWithFlights(e.target.checked)} className="rounded border-gray-300" />
                     <span>With Flights</span>
                   </label>
