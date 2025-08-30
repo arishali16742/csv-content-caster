@@ -43,45 +43,55 @@ const Packages = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   const lastFocusedInput = useRef<'desktop' | 'mobile' | null>(null);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const { data: packagesData, error: packagesError } = await supabase
-          .from('packages')
-          .select('*')
-          .or('status.is.null,status.eq.published')
-          .contains('publish_to', ['packages'])
-          .order('position', { ascending: true });
-        
-        if (packagesError) throw packagesError;
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      const { data: packagesData, error: packagesError } = await supabase
+        .from('packages')
+        .select('*')
+        .or('status.is.null,status.eq.published')
+        .contains('publish_to', ['packages'])
+        .order('position', { ascending: true });
+      
+      if (packagesError) throw packagesError;
 
-        const { data: detailsData, error: detailsError } = await supabase
-          .from('package_details')
-          .select('package_id, activity_details, attractions');
-        
-        if (detailsError) throw detailsError;
+      const { data: detailsData, error: detailsError } = await supabase
+        .from('package_details')
+        .select('package_id, activity_details, attractions');
+      
+      if (detailsError) throw detailsError;
 
-        const detailsMap = detailsData.reduce((acc, detail) => {
-          acc[detail.package_id] = detail;
-          return acc;
-        }, {});
+      const detailsMap = detailsData.reduce((acc, detail) => {
+        acc[detail.package_id] = detail;
+        return acc;
+      }, {});
 
-        setPackages(packagesData || []);
-        setPackageDetails(detailsMap || {});
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+      setPackages(packagesData || []);
+      setPackageDetails(detailsMap || {});
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchData();
-    
-    const urlParams = new URLSearchParams(location.search);
-    const searchQuery = urlParams.get('search') || urlParams.get('destination') || '';
-    setSearchInput(searchQuery);
-    setSearchDestination(searchQuery);
-  }, [location]);
+  fetchData();
+  
+  const urlParams = new URLSearchParams(location.search);
+  const searchQuery = urlParams.get('search') || urlParams.get('destination') || '';
+  const pageParam = urlParams.get('page');
+  
+  setSearchInput(searchQuery);
+  setSearchDestination(searchQuery);
+  
+  // Set current page from URL if available
+  if (pageParam) {
+    const page = parseInt(pageParam);
+    if (!isNaN(page) && page > 0) {
+      setCurrentPage(page);
+    }
+  }
+}, [location]);
 
   useEffect(() => {
     if (inputRef.current && lastFocusedInput.current) {
@@ -97,21 +107,21 @@ const Packages = () => {
   };
 
   const FilterContent = useCallback(({ inputRef, onFocus }: { 
-    inputRef: React.RefObject<HTMLInputElement>,
-    onFocus: (type: 'desktop' | 'mobile') => void 
-  }) => (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Filters</h3>
-        <Button 
-          variant="ghost" 
-          onClick={clearAllFilters} 
-          className="text-sm p-0 h-auto"
-          size="sm"
-        >
-          Clear All
-        </Button>
-      </div>
+  inputRef: React.RefObject<HTMLInputElement>,
+  onFocus: (type: 'desktop' | 'mobile') => void 
+}) => (
+  <div className="space-y-4">
+    <div className="flex items-center justify-between">
+      <h3 className="text-lg font-semibold">Filters</h3>
+      <Button 
+        variant="ghost" 
+        onClick={clearAllFilters} // This calls the outer function
+        className="text-sm p-0 h-auto"
+        size="sm"
+      >
+        Clear All
+      </Button>
+    </div>
 
       <div>
         <label className="block text-sm font-medium mb-1">Destination</label>
@@ -253,22 +263,25 @@ const Packages = () => {
   ), [searchInput, selectedCountry, selectedMood, selectedTripType, selectedDealType, selectedHotelCategory, priceRange, withFlights, packages, showMobileFilters]);
 
   const clearAllFilters = () => {
-    setSearchInput('');
-    setSearchDestination('');
-    setSelectedCountry('all');
-    setSelectedMood('all');
-    setSelectedTripType('all');
-    setSelectedDealType('all');
-    setSelectedHotelCategory('all');
-    setPriceRange([0, 10000000]);
-    setWithFlights(false);
-    setCurrentPage(1);
-    navigate('/packages', { replace: true });
-  };
+  setSearchInput('');
+  setSearchDestination('');
+  setSelectedCountry('all');
+  setSelectedMood('all');
+  setSelectedTripType('all');
+  setSelectedDealType('all');
+  setSelectedHotelCategory('all');
+  setPriceRange([0, 10000000]);
+  setWithFlights(false);
+  setCurrentPage(1);
+  navigate('/packages', { replace: true }); // This will clear all URL params including page
+};
 
   const handlePackageClick = (packageId: string) => {
-    navigate(`/package/${packageId}`);
-  };
+  const urlParams = new URLSearchParams(location.search);
+  urlParams.set('page', currentPage.toString());
+  
+  navigate(`/package/${packageId}?${urlParams.toString()}`);
+};
 
   const handleInputFocus = (type: 'desktop' | 'mobile') => {
     lastFocusedInput.current = type;
@@ -315,10 +328,16 @@ const Packages = () => {
   const totalPages = Math.ceil(sortedPackages.length / packagesPerPage);
 
   const paginate = (pageNumber: number) => {
-    if (pageNumber < 1 || pageNumber > totalPages) return;
-    setCurrentPage(pageNumber);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  if (pageNumber < 1 || pageNumber > totalPages) return;
+  
+  // Update URL with page parameter
+  const urlParams = new URLSearchParams(location.search);
+  urlParams.set('page', pageNumber.toString());
+  
+  navigate(`/packages?${urlParams.toString()}`, { replace: true });
+  setCurrentPage(pageNumber);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">

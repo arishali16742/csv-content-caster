@@ -226,6 +226,13 @@ const Cart = () => {
     setShowPackageDetail(true);
   };
 
+  const handleBookThisTrip = () => {
+    if (cartItems.length > 0) {
+      setSelectedPackage(cartItems[0]);
+      setIsBookingPopupOpen(true);
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -451,8 +458,12 @@ const Cart = () => {
                     </div>
                     
                     <div className="space-y-3">
-                      <Button variant="outline" className="w-full" onClick={() => window.location.href = '/packages'}>
-                        Continue Shopping
+                      <Button 
+                        className="w-full" 
+                        onClick={handleBookThisTrip}
+                      >
+                        <ShoppingCart className="h-4 w-4 mr-1" />
+                        Book this trip
                       </Button>
                     </div>
                   </CardContent>
