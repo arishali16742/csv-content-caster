@@ -10,6 +10,7 @@ import SpreadsheetUploadPackage from './SpreadsheetUploadPackage';
 import ImageUpload from './ImageUpload';
 
 interface Package {
+  combo_type: string;
   id?: string;
   title: string;
   country: string;
@@ -131,6 +132,7 @@ const PackageManagement = () => {
 
   const handleCreatePackage = () => {
     setEditingPackage({
+      combo_type: '',
       title: '',
       country: '',
       destinations: [],
@@ -284,7 +286,8 @@ const PackageManagement = () => {
         trip_type: editingPackage.trip_type,
         publish_to: editingPackage.publish_to || ['packages'],
         status: 'published',
-        gallery_images: editingPackage.gallery_images || []
+        gallery_images: editingPackage.gallery_images || [],
+        combo_type: editingPackage.combo_type || ''
       };
 
       if (editingPackage.id) {
@@ -335,12 +338,12 @@ const PackageManagement = () => {
     const oldPriceNum = parseInt((packageData.original_price || '').replace(/[^\d]/g, '')) || 0;
 
     const discount = oldPriceNum > 0 && priceNum < oldPriceNum ?
-      `${Math.round((1 - (priceNum / oldPriceNum)) * 100)}% OFF` : '';
+      `${Math.round((1 - (priceNum / oldPriceNum)) * 100)}%` : '';
       
     const destinationData = {
       name: packageData.title,
       country: packageData.country,
-      description: `${packageData.duration} package starting from ${packageData.price}`,
+      description: packageData.combo_type?.trim() || '',
       price: priceNum,
       old_price: oldPriceNum,
       rating: packageData.rating,
@@ -422,7 +425,8 @@ const PackageManagement = () => {
         trip_type: row.trip_type || '',
         publish_to: ['packages'],
         status: 'published',
-        position: packages.length + index + 1
+        position: packages.length + index + 1,
+        combo_type: row.combo_type || null, // ✅ ADD THIS LINE
       }));
 
       const { error } = await supabase

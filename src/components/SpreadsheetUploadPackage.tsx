@@ -19,12 +19,12 @@ const SpreadsheetUploadPackage = ({ onDataParsed, expectedColumns, title, templa
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
     if (selectedFile) {
-      if (selectedFile.type === 'text/csv' || selectedFile.name.endsWith('.csv')) {
+      if (selectedFile.type === 'text/csv' || selectedFile.name.endsWith('.csv') || selectedFile.type === 'text/tab-separated-values') {
         setFile(selectedFile);
       } else {
         toast({
           title: "Invalid File",
-          description: "Please upload a CSV file",
+          description: "Please upload a CSV or TSV file",
           variant: "destructive",
         });
       }
@@ -45,24 +45,30 @@ const SpreadsheetUploadPackage = ({ onDataParsed, expectedColumns, title, templa
   };
 
   const generateCSVContent = () => {
-    const headers = expectedColumns.join(',');
+    // Add combo_type to the expected columns for the template
+    const templateColumns = [...expectedColumns];
+    if (!templateColumns.includes('combo_type')) {
+      templateColumns.push('combo_type');
+    }
+    
+    const headers = templateColumns.join('\t');
     
     if (templateData && templateData.length > 0) {
       const rows = templateData.slice(0, 3).map(item => {
-        return expectedColumns.map(col => {
+        return templateColumns.map(col => {
           let value = item[col] || '';
           if (Array.isArray(value)) {
             value = value.join(';');
           }
-          if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+          if (typeof value === 'string' && value.includes('\t')) {
             value = `"${value.replace(/"/g, '""')}"`;
           }
           return value;
-        }).join(',');
+        }).join('\t');
       });
       return headers + '\n' + rows.join('\n');
     } else {
-      const exampleRow = expectedColumns.map(col => {
+      const exampleRow = templateColumns.map(col => {
         switch (col) {
           case 'title':
             return 'Example Destination';
@@ -93,10 +99,12 @@ const SpreadsheetUploadPackage = ({ onDataParsed, expectedColumns, title, templa
             return 'Family';
           case 'discount':
             return '20% OFF';
+          case 'combo_type':
+            return 'Standard';
           default:
             return '';
         }
-      }).join(',');
+      }).join('\t');
       return headers + '\n' + exampleRow;
     }
   };
@@ -106,11 +114,16 @@ const SpreadsheetUploadPackage = ({ onDataParsed, expectedColumns, title, templa
     if (lines.length === 0) return [];
 
     const firstLine = lines[0];
-    const delimiter = firstLine.includes('\t') ? '\t' : ',';
+    
+    // Detect delimiter - check for tabs first, then commas
+    let delimiter = '\t'; // Default to tab
+    if (!firstLine.includes('\t') && firstLine.includes(',')) {
+      delimiter = ',';
+    }
     
     console.log('Detected delimiter:', delimiter === '\t' ? 'tab' : 'comma');
 
-    const parseCSVLine = (line: string) => {
+    const parseLine = (line: string) => {
       const result = [];
       let inQuotes = false;
       let currentField = '';
@@ -132,13 +145,13 @@ const SpreadsheetUploadPackage = ({ onDataParsed, expectedColumns, title, templa
       return result;
     };
 
-    const headers = parseCSVLine(firstLine).map(h => h.trim().replace(/"/g, ''));
+    const headers = parseLine(firstLine).map(h => h.trim().replace(/"/g, ''));
     const rows = lines.slice(1);
   
     console.log('Headers found:', headers);
 
     return rows.map((row, index) => {
-      const values = parseCSVLine(row).map(v => v.trim().replace(/""/g, '"'));
+      const values = parseLine(row).map(v => v.trim().replace(/""/g, '"'));
       const obj: any = {};
       
       headers.forEach((header, headerIndex) => {
@@ -188,6 +201,11 @@ const SpreadsheetUploadPackage = ({ onDataParsed, expectedColumns, title, templa
       if (row.image && row.image.trim() !== '' && !row.image.startsWith('http')) {
         errors.push(`Row ${index + 1}: Image must be a valid URL starting with http`);
       }
+      
+      // Validate combo_type if present
+      if (row.combo_type && typeof row.combo_type !== 'string') {
+        errors.push(`Row ${index + 1}: Combo type must be a string`);
+      }
     });
     
     return errors;
@@ -221,6 +239,8 @@ const SpreadsheetUploadPackage = ({ onDataParsed, expectedColumns, title, templa
       }
 
       const fileColumns = Object.keys(data[0]);
+      
+      // Check if all expected columns are present (including combo_type)
       const missingColumns = expectedColumns.filter(col => !fileColumns.includes(col));
       
       if (missingColumns.length > 0) {
@@ -251,10 +271,19 @@ const SpreadsheetUploadPackage = ({ onDataParsed, expectedColumns, title, templa
         return;
       }
 
-      onDataParsed(data);
+      // Ensure combo_type is included in the parsed data
+      const processedData = data.map(item => {
+        // Make sure combo_type is properly handled
+        if (item.combo_type === undefined || item.combo_type === null) {
+          item.combo_type = ''; // Set default value if missing
+        }
+        return item;
+      });
+
+      onDataParsed(processedData);
       toast({
         title: "Success",
-        description: `${data.length} rows parsed successfully`,
+        description: `${data.length} rows parsed successfully. Combo type values: ${data.map(d => d.combo_type || 'N/A').join(', ')}`,
       });
       
       setFile(null);
@@ -299,7 +328,7 @@ const SpreadsheetUploadPackage = ({ onDataParsed, expectedColumns, title, templa
           <Input
             id="csv-upload"
             type="file"
-            accept=".csv"
+            accept=".csv,.tsv,.txt"
             onChange={handleFileChange}
             className="bg-white"
           />

@@ -485,321 +485,318 @@ useEffect(() => {
   };
 
   const generatePDF = async () => {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.width;
-    const pageHeight = doc.internal.pageSize.height;
-    const margin = 20;
-    let yPosition = margin;
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.width;
+  const pageHeight = doc.internal.pageSize.height;
+  const margin = 20;
+  let yPosition = margin;
 
-    doc.setFillColor(23, 37, 84);
-    doc.rect(0, 0, pageWidth, 60, 'F');
-    
-    doc.setFontSize(24);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(255, 255, 255);
-    doc.text('TravelGenz', margin, 40);
-    
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Crafting Unforgettable Journeys', margin, 47);
-    
-    yPosition = 70;
-    doc.setFontSize(18);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 0);
-    doc.text(`${user?.email?.split('@')[0] || 'Guest'}'s Personalized Itinerary`, margin, yPosition);
-    
+  // Add logo/header
+  doc.setFillColor(23, 37, 84);
+  doc.rect(0, 0, pageWidth, 60, 'F');
+  
+  doc.setFontSize(24);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(255, 255, 255);
+  doc.text('TravelGenz', margin, 40);
+  
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Crafting Unforgettable Journeys', margin, 47);
+  
+  // Add main package image if available
+  if (images && images.length > 0) {
+    try {
+      const imgData = await getImageData(images[0]);
+      const imgWidth = pageWidth - 2 * margin;
+      const imgHeight = imgWidth * 0.6;
+      
+      doc.addImage(imgData, 'JPEG', margin, yPosition, imgWidth, imgHeight);
+      yPosition += imgHeight + 15;
+    } catch (error) {
+      console.error('Error adding main image to PDF:', error);
+      yPosition += 15;
+    }
+  } else {
     yPosition += 15;
-    doc.setFontSize(28);
+  }
+  
+  // Package title
+  doc.setFontSize(28);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(23, 37, 84);
+  doc.text(packageData?.title || 'Trip Itinerary', margin, yPosition);
+  
+  yPosition += 15;
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 100, 100);
+  doc.text(`${selectedDuration} Days • ${packageData?.trip_type || 'Package'} • ${packageData?.destinations.join(' → ')}`, margin, yPosition);
+  
+  yPosition += 8;
+  doc.setFontSize(10);
+  doc.setTextColor(150, 150, 150);
+  doc.text(`Created on ${format(new Date(), 'MMMM dd, yyyy')}`, margin, yPosition);
+  
+  yPosition += 20;
+  
+  // Quote box
+  doc.setFillColor(240, 249, 255);
+  doc.rect(margin - 5, yPosition - 5, pageWidth - 2 * margin + 10, 25, 'F');
+  doc.setDrawColor(200, 200, 200);
+  doc.rect(margin - 5, yPosition - 5, pageWidth - 2 * margin + 10, 25, 'D');
+  
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'italic');
+  doc.setTextColor(50, 50, 50);
+  const quote = `"${packageData?.destinations[0]} awaits with unforgettable experiences. This itinerary has been carefully crafted to ensure you make the most of every moment."`;
+  const splitQuote = doc.splitTextToSize(quote, pageWidth - 2 * margin - 10);
+  doc.text(splitQuote, margin, yPosition + 8);
+  
+  yPosition += 35;
+  
+  // Trip at a glance section
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(23, 37, 84);
+  doc.text('Trip At A Glance', margin, yPosition);
+  yPosition += 10;
+  
+  doc.setDrawColor(200, 200, 200);
+  doc.line(margin, yPosition, pageWidth - margin, yPosition);
+  yPosition += 15;
+  
+  const quickFacts = [
+    { icon: '🗓️', title: 'Duration', value: `${selectedDuration} Days ${parseInt(selectedDuration) > 1 ? parseInt(selectedDuration)-1 + ' Nights' : ''}` },
+    { icon: '📍', title: 'Destinations', value: packageData?.destinations.join(', ') },
+    { icon: '✈️', title: 'Flight Option', value: withFlights ? 'Included' : 'Not Included' },
+    { icon: '👥', title: 'Travelers', value: `${members} ${members > 1 ? 'Persons' : 'Person'}` },
+    { icon: '🏨', title: 'Accommodation', value: `${packageDetails?.hotels?.length || 'Premium'} Hotels` },
+    { icon: '📅', title: 'Travel Date', value: selectedDate ? format(selectedDate, 'MMMM dd, yyyy') : 'Flexible' }
+  ];
+  
+  let factX = margin;
+  let factY = yPosition;
+  quickFacts.forEach((fact, index) => {
+    if (index % 3 === 0 && index !== 0) {
+      factX = margin;
+      factY += 30;
+    }
+    
+    doc.setFillColor(245, 245, 245);
+    doc.roundedRect(factX, factY, 55, 25, 3, 3, 'F');
+    doc.setDrawColor(220, 220, 220);
+    doc.roundedRect(factX, factY, 55, 25, 3, 3, 'D');
+    
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(23, 37, 84);
-    doc.text(packageData?.title || 'Trip Itinerary', margin, yPosition);
-    
-    yPosition += 15;
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 100, 100);
-    doc.text(`${selectedDuration} Days • ${packageData?.trip_type || 'Package'} • ${packageData?.destinations.join(' → ')}`, margin, yPosition);
-    
-    yPosition += 8;
-    doc.setFontSize(10);
-    doc.setTextColor(150, 150, 150);
-    doc.text(`Created on ${format(new Date(), 'MMMM dd, yyyy')}`, margin, yPosition);
-    
-    yPosition += 20;
-    
-    doc.setFillColor(240, 249, 255);
-    doc.rect(margin - 5, yPosition - 5, pageWidth - 2 * margin + 10, 25, 'F');
-    doc.setDrawColor(200, 200, 200);
-    doc.rect(margin - 5, yPosition - 5, pageWidth - 2 * margin + 10, 25, 'D');
-    
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'italic');
     doc.setTextColor(50, 50, 50);
-    const quote = `"${packageData?.destinations[0]} awaits with unforgettable experiences. This itinerary has been carefully crafted to ensure you make the most of every moment."`;
-    const splitQuote = doc.splitTextToSize(quote, pageWidth - 2 * margin - 10);
-    doc.text(splitQuote, margin, yPosition + 8);
+    doc.text(`${fact.icon} ${fact.title}`, factX + 5, factY + 8);
     
-    yPosition += 35;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(80, 80, 80);
+    const splitValue = doc.splitTextToSize(fact.value, 45);
+    doc.text(splitValue, factX + 5, factY + 16);
     
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(23, 37, 84);
-    doc.text('Trip At A Glance', margin, yPosition);
-    yPosition += 10;
-    
-    doc.setDrawColor(200, 200, 200);
-    doc.line(margin, yPosition, pageWidth - margin, yPosition);
-    yPosition += 15;
-    
-    const quickFacts = [
-      { icon: '🗓️', title: 'Duration', value: `${selectedDuration} Days ${parseInt(selectedDuration) > 1 ? parseInt(selectedDuration)-1 + ' Nights' : ''}` },
-      { icon: '📍', title: 'Destinations', value: packageData?.destinations.join(', ') },
-      { icon: '✈️', title: 'Flight Option', value: withFlights ? 'Included' : 'Not Included' },
-      { icon: '👥', title: 'Travelers', value: `${members} ${members > 1 ? 'Persons' : 'Person'}` },
-      { icon: '🏨', title: 'Accommodation', value: `${packageDetails?.hotels?.length || 'Premium'} Hotels` },
-      { icon: '📅', title: 'Travel Date', value: selectedDate ? format(selectedDate, 'MMMM dd, yyyy') : 'Flexible' }
-    ];
-    
-    let factX = margin;
-    let factY = yPosition;
-    quickFacts.forEach((fact, index) => {
-      if (index % 3 === 0 && index !== 0) {
-        factX = margin;
-        factY += 30;
-      }
+    factX += 60;
+  });
+  
+  yPosition = factY + 35;
+  
+  // Add more images from gallery if available
+  if (images && images.length > 1) {
+    try {
+      doc.addPage();
+      yPosition = margin;
       
-      doc.setFillColor(245, 245, 245);
-      doc.roundedRect(factX, factY, 55, 25, 3, 3, 'F');
-      doc.setDrawColor(220, 220, 220);
-      doc.roundedRect(factX, factY, 55, 25, 3, 3, 'D');
-      
-      doc.setFontSize(10);
+      doc.setFontSize(18);
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(50, 50, 50);
-      doc.text(`${fact.icon} ${fact.title}`, factX + 5, factY + 8);
-      
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(80, 80, 80);
-      const splitValue = doc.splitTextToSize(fact.value, 45);
-      doc.text(splitValue, factX + 5, factY + 16);
-      
-      factX += 60;
-    });
-    
-    yPosition = factY + 35;
-    
-    doc.setFillColor(23, 37, 84);
-    doc.rect(margin, yPosition, pageWidth - 2 * margin, 30, 'F');
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(255, 255, 255);
-    doc.text('Pricing Summary', margin + 10, yPosition + 20);
-    
-    yPosition += 40;
-    
-    const currentPrice = getCurrentPrice();
-    const totalPrice = currentPrice * members;
-    const originalPrice = parseInt(packageData?.original_price.replace(/[₹,]/g, '') || '0');
-    const totalOriginalPrice = originalPrice * members;
-    const grandTotalPrice = totalPrice + addedVisaCost;
-    
-    const priceDetails = [
-      { item: 'Base Price', value: `₹${currentPrice.toLocaleString()} x ${members}` },
-      { item: 'Subtotal', value: `₹${totalPrice.toLocaleString()}` },
-    ];
-    
-    if (addedVisaCost > 0) {
-      priceDetails.push({ item: 'Visa Fees', value: `₹${addedVisaCost.toLocaleString()}` });
-    }
-    
-    priceDetails.push({ item: 'Grand Total', value: `₹${grandTotalPrice.toLocaleString()}` });
-    
-    priceDetails.forEach((detail, index) => {
-      doc.setFontSize(index === priceDetails.length - 1 ? 12 : 10);
-      doc.setFont('helvetica', index === priceDetails.length - 1 ? 'bold' : 'normal');
-      doc.setTextColor(0, 0, 0);
-      
-      doc.text(detail.item, margin + 5, yPosition + 8);
-      
-      const textWidth = doc.getStringUnitWidth(detail.value) * doc.getFontSize() / doc.internal.scaleFactor;
-      doc.text(detail.value, pageWidth - margin - 5 - textWidth, yPosition + 8);
-      
-      if (index === priceDetails.length - 2) {
-        doc.setDrawColor(200, 200, 200);
-        doc.line(margin, yPosition + 12, pageWidth - margin, yPosition + 12);
-        yPosition += 5;
-      }
-      
+      doc.setTextColor(23, 37, 84);
+      doc.text('Destination Gallery', margin, yPosition);
       yPosition += 10;
-    });
-    
-    if (originalPrice > 0 && totalOriginalPrice > totalPrice) {
-      yPosition += 5;
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(150, 150, 150);
-      doc.text(`You save ₹${(totalOriginalPrice - totalPrice).toLocaleString()} (${Math.round(((totalOriginalPrice - totalPrice)/totalOriginalPrice)*100)}% off)`, margin + 5, yPosition);
-      yPosition += 10;
-    }
-    
-    yPosition += 15;
-    
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'italic');
-    doc.setTextColor(120, 120, 120);
-    const disclaimer = '* Prices are subject to availability and may change. Final pricing will be confirmed at the time of booking. Taxes and fees included.';
-    const splitDisclaimer = doc.splitTextToSize(disclaimer, pageWidth - 2 * margin);
-    doc.text(splitDisclaimer, margin, yPosition);
-    
-    yPosition += 20;
-    
-    doc.addPage();
-    yPosition = margin;
-    
-    doc.setFontSize(18);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(23, 37, 84);
-    doc.text('Detailed Itinerary', margin, yPosition);
-    yPosition += 10;
-    
-    doc.setDrawColor(200, 200, 200);
-    doc.line(margin, yPosition, pageWidth - margin, yPosition);
-    yPosition += 15;
-    
-    const itinerary = packageDetails?.itinerary?.[selectedDuration] || [];
-    itinerary.forEach((day: any, index: number) => {
-      if (yPosition > pageHeight - 100) {
-        doc.addPage();
-        yPosition = margin;
-      }
       
-      const dayDate = selectedDate ? 
-        new Date(selectedDate.getTime() + ((day.day - 1) * 24 * 60 * 60 * 1000)) : 
-        null;
+      doc.setDrawColor(200, 200, 200);
+      doc.line(margin, yPosition, pageWidth - margin, yPosition);
+      yPosition += 15;
       
-      doc.setFillColor(23, 37, 84);
-      doc.rect(margin - 5, yPosition - 5, pageWidth - 2 * margin + 10, 15, 'F');
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(255, 255, 255);
-      doc.text(`Day ${day.day}: ${day.title || `Exploring ${packageData?.destinations[0]}`}${dayDate ? ` • ${format(dayDate, 'EEE, MMM dd')}` : ''}`, margin, yPosition + 5);
-      yPosition += 20;
-      
-      if (day.activities && day.activities.length > 0) {
-        day.activities.forEach((activity: string, i: number) => {
-          if (yPosition > pageHeight - 30) {
-            doc.addPage();
-            yPosition = margin;
-          }
+      // Add gallery images (skip the first one as it's already used)
+      for (let i = 1; i < Math.min(images.length, 4); i++) {
+        if (yPosition > pageHeight - 150) {
+          doc.addPage();
+          yPosition = margin;
+        }
+        
+        try {
+          const imgData = await getImageData(images[i]);
+          const imgWidth = pageWidth - 2 * margin;
+          const imgHeight = imgWidth * 0.5;
           
-          doc.setFillColor(248, 250, 252);
-          doc.rect(margin, yPosition, pageWidth - 2 * margin, 20, 'F');
-          doc.setDrawColor(220, 220, 220);
-          doc.rect(margin, yPosition, pageWidth - 2 * margin, 20, 'D');
-          
-          doc.setFillColor(23, 37, 84);
-          doc.rect(margin, yPosition, 25, 20, 'F');
-          doc.setFontSize(8);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(255, 255, 255);
-          doc.text(getTimeSlot(i), margin + 5, yPosition + 12);
+          doc.addImage(imgData, 'JPEG', margin, yPosition, imgWidth, imgHeight);
+          yPosition += imgHeight + 10;
           
           doc.setFontSize(10);
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(50, 50, 50);
-          doc.text(activity, margin + 30, yPosition + 12);
-          
-          yPosition += 25;
-        });
-      } else {
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'italic');
-        doc.setTextColor(150, 150, 150);
-        doc.text('Activities to be customized based on your preferences', margin, yPosition + 5);
-        yPosition += 15;
+          doc.setFont('helvetica', 'italic');
+          doc.setTextColor(100, 100, 100);
+          doc.text(`Image ${i + 1} of ${images.length}`, margin, yPosition);
+          yPosition += 15;
+        } catch (error) {
+          console.error(`Error adding image ${i} to PDF:`, error);
+        }
       }
-      
-      yPosition += 10;
-    });
+    } catch (error) {
+      console.error('Error adding gallery to PDF:', error);
+    }
+  }
+  
+  // Pricing section
+  doc.addPage();
+  yPosition = margin;
+  
+  doc.setFillColor(23, 37, 84);
+  doc.rect(margin, yPosition, pageWidth - 2 * margin, 30, 'F');
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(255, 255, 255);
+  doc.text('Pricing Summary', margin + 10, yPosition + 20);
+  
+  yPosition += 40;
+  
+  const currentPrice = getCurrentPrice();
+  const totalPrice = currentPrice * members;
+  const originalPrice = parseInt(packageData?.original_price.replace(/[₹,]/g, '') || '0');
+  const totalOriginalPrice = originalPrice * members;
+  const grandTotalPrice = totalPrice + addedVisaCost;
+  
+  const priceDetails = [
+    { item: 'Base Price', value: `₹${currentPrice.toLocaleString()} x ${members}` },
+    { item: 'Subtotal', value: `₹${totalPrice.toLocaleString()}` },
+  ];
+  
+  if (addedVisaCost > 0) {
+    priceDetails.push({ item: 'Visa Fees', value: `₹${addedVisaCost.toLocaleString()}` });
+  }
+  
+  priceDetails.push({ item: 'Grand Total', value: `₹${grandTotalPrice.toLocaleString()}` });
+  
+  priceDetails.forEach((detail, index) => {
+    doc.setFontSize(index === priceDetails.length - 1 ? 12 : 10);
+    doc.setFont('helvetica', index === priceDetails.length - 1 ? 'bold' : 'normal');
+    doc.setTextColor(0, 0, 0);
     
-    if (packageDetails?.attractions && packageDetails.attractions.length > 0) {
-      doc.addPage();
-      yPosition = margin;
-      
-      doc.setFontSize(18);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(23, 37, 84);
-      doc.text('Top Attractions', margin, yPosition);
-      yPosition += 10;
-      
+    doc.text(detail.item, margin + 5, yPosition + 8);
+    
+    const textWidth = doc.getStringUnitWidth(detail.value) * doc.getFontSize() / doc.internal.scaleFactor;
+    doc.text(detail.value, pageWidth - margin - 5 - textWidth, yPosition + 8);
+    
+    if (index === priceDetails.length - 2) {
       doc.setDrawColor(200, 200, 200);
-      doc.line(margin, yPosition, pageWidth - margin, yPosition);
-      yPosition += 15;
-      
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(80, 80, 80);
-      
-      packageDetails.attractions.forEach((attraction, index) => {
-        if (yPosition > pageHeight - 20) {
-          doc.addPage();
-          yPosition = margin;
-        }
-        
-        const fillColor = index % 2 === 0 ? [248, 250, 252] : [255, 255, 255];
-        doc.rect(margin, yPosition, pageWidth - 2 * margin, 10, 'F');
-        
-        doc.text(`✓ ${attraction}`, margin + 5, yPosition + 7);
-        yPosition += 10;
-      });
-      
-      yPosition += 15;
+      doc.line(margin, yPosition + 12, pageWidth - margin, yPosition + 12);
+      yPosition += 5;
     }
     
-    if (packageDetails?.hotels && packageDetails.hotels.length > 0) {
+    yPosition += 10;
+  });
+  
+  if (originalPrice > 0 && totalOriginalPrice > totalPrice) {
+    yPosition += 5;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(150, 150, 150);
+    doc.text(`You save ₹${(totalOriginalPrice - totalPrice).toLocaleString()} (${Math.round(((totalOriginalPrice - totalPrice)/totalOriginalPrice)*100)}% off)`, margin + 5, yPosition);
+    yPosition += 10;
+  }
+  
+  yPosition += 15;
+  
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'italic');
+  doc.setTextColor(120, 120, 120);
+  const disclaimer = '* Prices are subject to availability and may change. Final pricing will be confirmed at the time of booking. Taxes and fees included.';
+  const splitDisclaimer = doc.splitTextToSize(disclaimer, pageWidth - 2 * margin);
+  doc.text(splitDisclaimer, margin, yPosition);
+  
+  yPosition += 20;
+  
+  // Detailed itinerary section
+  doc.addPage();
+  yPosition = margin;
+  
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(23, 37, 84);
+  doc.text('Detailed Itinerary', margin, yPosition);
+  yPosition += 10;
+  
+  doc.setDrawColor(200, 200, 200);
+  doc.line(margin, yPosition, pageWidth - margin, yPosition);
+  yPosition += 15;
+  
+  const itinerary = packageDetails?.itinerary?.[selectedDuration] || [];
+  itinerary.forEach((day: any, index: number) => {
+    if (yPosition > pageHeight - 100) {
       doc.addPage();
       yPosition = margin;
-      
-      doc.setFontSize(18);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(23, 37, 84);
-      doc.text('Accommodations', margin, yPosition);
-      yPosition += 10;
-      
-      doc.setDrawColor(200, 200, 200);
-      doc.line(margin, yPosition, pageWidth - margin, yPosition);
-      yPosition += 15;
-      
-      doc.setFontSize(10);
-      packageDetails.hotels.forEach((hotel, index) => {
-        if (yPosition > pageHeight - 50) {
+    }
+    
+    const dayDate = selectedDate ? 
+      new Date(selectedDate.getTime() + ((day.day - 1) * 24 * 60 * 60 * 1000)) : 
+      null;
+    
+    doc.setFillColor(23, 37, 84);
+    doc.rect(margin - 5, yPosition - 5, pageWidth - 2 * margin + 10, 15, 'F');
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255);
+    doc.text(`Day ${day.day}: ${day.title || `Exploring ${packageData?.destinations[0]}`}${dayDate ? ` • ${format(dayDate, 'EEE, MMM dd')}` : ''}`, margin, yPosition + 5);
+    yPosition += 20;
+    
+    if (day.activities && day.activities.length > 0) {
+      day.activities.forEach((activity: string, i: number) => {
+        if (yPosition > pageHeight - 30) {
           doc.addPage();
           yPosition = margin;
         }
         
+        doc.setFillColor(248, 250, 252);
+        doc.rect(margin, yPosition, pageWidth - 2 * margin, 20, 'F');
+        doc.setDrawColor(220, 220, 220);
+        doc.rect(margin, yPosition, pageWidth - 2 * margin, 20, 'D');
+        
+        doc.setFillColor(23, 37, 84);
+        doc.rect(margin, yPosition, 25, 20, 'F');
+        doc.setFontSize(8);
         doc.setFont('helvetica', 'bold');
-        doc.setTextColor(23, 37, 84);
-        doc.text(`🏨 ${hotel}`, margin, yPosition);
-        yPosition += 7;
+        doc.setTextColor(255, 255, 255);
+        doc.text(getTimeSlot(i), margin + 5, yPosition + 12);
         
+        doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
-        doc.setTextColor(100, 100, 100);
-        doc.text('4-star property with premium amenities and excellent location', margin + 10, yPosition);
-        yPosition += 15;
+        doc.setTextColor(50, 50, 50);
+        doc.text(activity, margin + 30, yPosition + 12);
+        
+        yPosition += 25;
       });
-      
-      yPosition += 10;
+    } else {
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(150, 150, 150);
+      doc.text('Activities to be customized based on your preferences', margin, yPosition + 5);
+      yPosition += 15;
     }
     
+    yPosition += 10;
+  });
+  
+  // Attractions section
+  if (packageDetails?.attractions && packageDetails.attractions.length > 0) {
     doc.addPage();
     yPosition = margin;
     
     doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(23, 37, 84);
-    doc.text('Package Inclusions', margin, yPosition);
+    doc.text('Top Attractions', margin, yPosition);
     yPosition += 10;
     
     doc.setDrawColor(200, 200, 200);
@@ -810,7 +807,7 @@ useEffect(() => {
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(80, 80, 80);
     
-    packageData?.includes.forEach((inclusion, index) => {
+    packageDetails.attractions.forEach((attraction, index) => {
       if (yPosition > pageHeight - 20) {
         doc.addPage();
         yPosition = margin;
@@ -819,84 +816,186 @@ useEffect(() => {
       const fillColor = index % 2 === 0 ? [248, 250, 252] : [255, 255, 255];
       doc.rect(margin, yPosition, pageWidth - 2 * margin, 10, 'F');
       
-      doc.text(`✓ ${inclusion}`, margin + 5, yPosition + 7);
+      doc.text(`✓ ${attraction}`, margin + 5, yPosition + 7);
       yPosition += 10;
     });
-
-    if (packageDetails?.activity_details?.list) {
-      packageDetails.activity_details.list.forEach((activity, index) => {
-        if (yPosition > pageHeight - 20) {
-          doc.addPage();
-          yPosition = margin;
-        }
-        
-        doc.rect(margin, yPosition, pageWidth - 2 * margin, 10, 'F');
-        doc.text(`✓ ${activity}`, margin + 5, yPosition + 7);
-        yPosition += 10;
-      });
-    }
     
-    yPosition += 20;
+    yPosition += 15;
+  }
+  
+  // Hotels section
+  if (packageDetails?.hotels && packageDetails.hotels.length > 0) {
+    doc.addPage();
+    yPosition = margin;
     
-    doc.setFontSize(14);
+    doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(23, 37, 84);
-    doc.text('How To Book', margin, yPosition);
+    doc.text('Accommodations', margin, yPosition);
     yPosition += 10;
     
     doc.setDrawColor(200, 200, 200);
     doc.line(margin, yPosition, pageWidth - margin, yPosition);
     yPosition += 15;
     
-    const bookingSteps = [
-      "1. Review this itinerary and make any desired changes",
-      "2. Contact our travel experts to confirm availability",
-      "3. Make a 20% deposit to secure your booking",
-      "4. Receive your booking confirmation and travel documents",
-      "5. Pay the remaining balance 30 days before departure"
-    ];
-    
     doc.setFontSize(10);
-    bookingSteps.forEach((step, index) => {
-      doc.text(step, margin + 5, yPosition + 5);
+    packageDetails.hotels.forEach((hotel, index) => {
+      if (yPosition > pageHeight - 50) {
+        doc.addPage();
+        yPosition = margin;
+      }
+      
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(23, 37, 84);
+      doc.text(`🏨 ${hotel}`, margin, yPosition);
+      yPosition += 7;
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 100, 100);
+      doc.text('4-star property with premium amenities and excellent location', margin + 10, yPosition);
+      yPosition += 15;
+    });
+    
+    yPosition += 10;
+  }
+  
+  // Inclusions section
+  doc.addPage();
+  yPosition = margin;
+  
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(23, 37, 84);
+  doc.text('Package Inclusions', margin, yPosition);
+  yPosition += 10;
+  
+  doc.setDrawColor(200, 200, 200);
+  doc.line(margin, yPosition, pageWidth - margin, yPosition);
+  yPosition += 15;
+  
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(80, 80, 80);
+  
+  packageData?.includes.forEach((inclusion, index) => {
+    if (yPosition > pageHeight - 20) {
+      doc.addPage();
+      yPosition = margin;
+    }
+    
+    const fillColor = index % 2 === 0 ? [248, 250, 252] : [255, 255, 255];
+    doc.rect(margin, yPosition, pageWidth - 2 * margin, 10, 'F');
+    
+    doc.text(`✓ ${inclusion}`, margin + 5, yPosition + 7);
+    yPosition += 10;
+  });
+
+  if (packageDetails?.activity_details?.list) {
+    packageDetails.activity_details.list.forEach((activity, index) => {
+      if (yPosition > pageHeight - 20) {
+        doc.addPage();
+        yPosition = margin;
+      }
+      
+      doc.rect(margin, yPosition, pageWidth - 2 * margin, 10, 'F');
+      doc.text(`✓ ${activity}`, margin + 5, yPosition + 7);
       yPosition += 10;
     });
-    
-    yPosition += 20;
-    
-    doc.setFillColor(240, 249, 255);
-    doc.rect(margin - 5, yPosition - 5, pageWidth - 2 * margin + 10, 40, 'F');
-    doc.setDrawColor(200, 200, 200);
-    doc.rect(margin - 5, yPosition - 5, pageWidth - 2 * margin + 10, 40, 'D');
-    
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(23, 37, 84);
-    doc.text('Need Assistance?', margin, yPosition + 10);
-    
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-        doc.text('Email: info@travelgenz.com', margin, yPosition + 20);
-    doc.text('Phone: +1 (555) 123-4567', margin, yPosition + 30);
-    
-    doc.save(`${packageData?.title.replace(/\s+/g, '_') || 'TravelGenz_Itinerary'}.pdf`);
-    
-    toast({
-      title: "PDF Downloaded",
-      description: "Your complete itinerary has been downloaded",
-    });
+  }
+  
+  yPosition += 20;
+  
+  // How to book section
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(23, 37, 84);
+  doc.text('How To Book', margin, yPosition);
+  yPosition += 10;
+  
+  doc.setDrawColor(200, 200, 200);
+  doc.line(margin, yPosition, pageWidth - margin, yPosition);
+  yPosition += 15;
+  
+  const bookingSteps = [
+    "1. Review this itinerary and make any desired changes",
+    "2. Contact our travel experts to confirm availability",
+    "3. Make a 20% deposit to secure your booking",
+    "4. Receive your booking confirmation and travel documents",
+    "5. Pay the remaining balance 30 days before departure"
+  ];
+  
+  doc.setFontSize(10);
+  bookingSteps.forEach((step, index) => {
+    doc.text(step, margin + 5, yPosition + 5);
+    yPosition += 10;
+  });
+  
+  yPosition += 20;
+  
+  // Contact information
+  doc.setFillColor(240, 249, 255);
+  doc.rect(margin - 5, yPosition - 5, pageWidth - 2 * margin + 10, 40, 'F');
+  doc.setDrawColor(200, 200, 200);
+  doc.rect(margin - 5, yPosition - 5, pageWidth - 2 * margin + 10, 40, 'D');
+  
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(23, 37, 84);
+  doc.text('Need Assistance?', margin, yPosition + 10);
+  
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Email: info@travelgenz.com', margin, yPosition + 20);
+  doc.text('Phone: +1 (555) 123-4567', margin, yPosition + 30);
+  
+  // Save the PDF
+  doc.save(`${packageData?.title.replace(/\s+/g, '_') || 'TravelGenz_Itinerary'}.pdf`);
+  
+  toast({
+    title: "PDF Downloaded",
+    description: "Your complete itinerary has been downloaded",
+  });
 
-    if (user && packageData) {
-      await supabase.from('user_activities').insert({
-        user_id: user.id,
-        action_type: 'download_itinerary',
-        item_type: 'package',
-        item_id: packageData.id,
-        item_name: packageData.title,
-        user_email: user.email
-      });
-    }
-  };
+  if (user && packageData) {
+    await supabase.from('user_activities').insert({
+      user_id: user.id,
+      action_type: 'download_itinerary',
+      item_type: 'package',
+      item_id: packageData.id,
+      item_name: packageData.title,
+      user_email: user.email
+    });
+  }
+};
+
+// Helper function to get image data for PDF
+const getImageData = (url: string): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          const dataURL = canvas.toDataURL('image/jpeg', 0.8);
+          resolve(dataURL);
+        } else {
+          reject(new Error('Could not get canvas context'));
+        }
+      } catch (error) {
+        reject(error);
+      }
+    };
+    img.onerror = () => {
+      reject(new Error('Failed to load image'));
+    };
+    img.src = url;
+  });
+};
 
   const getTimeSlot = (index: number) => {
     const timeSlots = ['MORNING', 'AFTERNOON', 'EVENING', 'NIGHT'];
@@ -960,137 +1059,161 @@ useEffect(() => {
           </div>
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 py-4 md:pt-6 md:pb-0">
-
-      {/* Dynamic blurred background */}
-      <div
-        className="absolute inset-0 -z-10 bg-center bg-cover scale-110 blur-lg opacity-20 rounded-xl"
-        style={{ backgroundImage: `url(${images[currentImageIndex]})` }}
-      ></div>
-
-      {/* Combined Card */}
-      <div className="relative grid grid-cols-1 lg:grid-cols-2 bg-white/90 backdrop-blur-sm rounded-xl overflow-hidden shadow-lg">
-        {/* Left Side - Package Info */}
-        <div className="p-4 md:p-6">
-          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold mb-2 text-gray-900 line-clamp-2">
-            {packageData.title}
-          </h1>
-
-          <div className="flex flex-wrap items-center gap-2 md:gap-3 text-xs md:text-sm text-gray-700 mb-3">
-            <div className="flex items-center gap-1">
-              <MapPin className="h-3 w-3 md:h-4 md:w-4" />
-              <span>{packageData.country}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Clock className="h-3 w-3 md:h-4 md:w-4" />
-              <span>{packageData.duration}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Star className="h-3 w-3 md:h-4 md:w-4 text-yellow-400 fill-current" />
-              <span>{packageData.rating}</span>
-            </div>
-          </div>
-
-          <div className="mb-[1.75rem]">
-
-            <h3 className="font-semibold mb-1 text-xs md:text-sm">Destinations</h3>
-            <div className="flex flex-wrap gap-1">
-              {packageData.destinations.map((destination, index) => (
-                <Badge key={index} variant="secondary" className="text-xs">
-                  {destination}
-                </Badge>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-1 md:gap-2 text-xs md:text-base">
-
-            <div className="flex items-center gap-1">
-              <span>🏨</span>
-              <span>{packageData.hotel_category || "3-4 Star"}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <span>🍽️</span>
-              <span>{packageData.meals_included || "Breakfast"}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <span>🚗</span>
-              <span>{packageData.transfer_included ? "Transfers" : "No Transfers"}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <span>🎯</span>
-              <span>
-                {packageData.activity_details?.count ||
-                  packageDetails?.activity_details?.count ||
-                  0}{" "}
-                Activities
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Side - Main Image with Navigation */}
-        <div className="relative h-[250px] lg:h-[300px]">
-          <img
-            src={images[currentImageIndex]}
-            alt={packageData.title}
-            className="w-full h-full object-cover"
+        {/* Enhanced Background with Blur Effect */}
+        <div className="relative min-h-[400px] overflow-hidden">
+          {/* Multiple Layered Backgrounds for Enhanced Effect */}
+          <div
+            className="absolute inset-0 bg-center bg-cover scale-110"
+            style={{ backgroundImage: `url(${images[currentImageIndex]})` }}
           />
-
-          {images.length > 1 && (
-            <>
-              {/* Gallery Button */}
-              <button
-                onClick={() => setShowGallery(true)}
-                className="absolute top-3 right-3 bg-white/90 hover:bg-white px-3 py-1 rounded-lg text-xs font-medium flex items-center gap-1 shadow-md z-10"
-              >
-                <Camera className="h-3 w-3" />
-                <span>Gallery ({images.length})</span>
-              </button>
-
-              {/* Navigation Arrows */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
-                }}
-                className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1 md:p-2 z-10"
-              >
-                <ChevronLeft className="h-3 w-3 md:h-4 md:w-4" />
-              </button>
-
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setCurrentImageIndex((prev) => (prev + 1) % images.length);
-                }}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1 md:p-2 z-10"
-              >
-                <ChevronRight className="h-3 w-3 md:h-4 md:w-4" />
-              </button>
-
-              {/* Auto-slide Dots */}
-              <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex gap-1 z-10">
-                {images.map((_, index) => (
-                  <button
-  key={index}
-  onClick={(e) => {
-    e.stopPropagation();
-    setCurrentImageIndex(index);
-  }}
-  className={`w-1.5 h-1.5 md:w-2 md:h-2 min-w-[11px] min-h-[11px] rounded-full transition-all ${
-    currentImageIndex === index ? "bg-white w-3 md:w-4" : "bg-white/50"
-  }`}
-/>
-
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
           
+          {/* Primary Blur Layer */}
+          <div
+            className="absolute inset-0 bg-center bg-cover scale-110 blur-2xl opacity-70"
+            style={{ backgroundImage: `url(${images[currentImageIndex]})` }}
+          />
+          
+          {/* Secondary Blur Layer for more depth */}
+          <div
+            className="absolute inset-0 bg-center bg-cover scale-105 blur-lg opacity-50"
+            style={{ backgroundImage: `url(${images[currentImageIndex]})` }}
+          />
+          
+          {/* Gradient Overlays for better text readability */}
+          <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-black/20" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/10 to-black/40" />
+          
+          {/* Content Container */}
+          <div className="relative z-10 max-w-7xl mx-auto px-4 py-8 md:py-12">
+            {/* Main Card with Glass Effect */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 bg-white/95 backdrop-blur-sm rounded-2xl overflow-hidden shadow-2xl border border-white/20">
+              {/* Left Side - Package Info */}
+              <div className="p-6 md:p-8">
+                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-3 text-gray-900 line-clamp-2">
+                  {packageData.title}
+                </h1>
+
+                <div className="flex flex-wrap items-center gap-3 md:gap-4 text-sm md:text-base text-gray-700 mb-4">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 md:h-5 md:w-5 text-blue-600" />
+                    <span>{packageData.country}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 md:h-5 md:w-5 text-green-600" />
+                    <span>{packageData.duration}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Star className="h-4 w-4 md:h-5 md:w-5 text-yellow-500 fill-current" />
+                    <span>{packageData.rating}</span>
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <h3 className="font-semibold mb-2 text-sm md:text-base text-gray-800">Destinations</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {packageData.destinations.map((destination, index) => (
+                      <Badge key={index} variant="secondary" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                        {destination}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 md:gap-4 text-sm md:text-base">
+                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                    <Hotel className="h-5 w-5 text-purple-600" />
+                    <span>{packageData.hotel_category || "3-4 Star"}</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                    <Utensils className="h-5 w-5 text-orange-600" />
+                    <span>{packageData.meals_included || "Breakfast"}</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                    <Plane className="h-5 w-5 text-indigo-600" />
+                    <span>{packageData.transfer_included ? "Transfers" : "No Transfers"}</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                    <Trophy className="h-5 w-5 text-yellow-600" />
+                    <span>
+                      {packageData.activity_details?.count ||
+                        packageDetails?.activity_details?.count ||
+                        0}{" "}
+                      Activities
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Side - Main Image with Navigation */}
+              <div className="relative h-[300px] lg:h-[400px]">
+                <motion.img
+                  key={currentImageIndex}
+                  initial={{ opacity: 0, scale: 1.1 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.6 }}
+                  src={images[currentImageIndex]}
+                  alt={packageData.title}
+                  className="w-full h-full object-cover"
+                />
+
+                {images.length > 1 && (
+                  <>
+                    {/* Gallery Button with enhanced styling */}
+                    <button
+                      onClick={() => setShowGallery(true)}
+                      className="absolute top-4 right-4 bg-white/95 backdrop-blur-sm hover:bg-white px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 shadow-lg z-10 transition-all duration-200 hover:scale-105"
+                    >
+                      <Camera className="h-4 w-4" />
+                      <span>Gallery ({images.length})</span>
+                    </button>
+
+                    {/* Enhanced Navigation Arrows */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+                      }}
+                      className="absolute left-3 top-1/2 transform -translate-y-1/2 bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white rounded-full p-3 z-10 transition-all duration-200 hover:scale-110"
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCurrentImageIndex((prev) => (prev + 1) % images.length);
+                      }}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white rounded-full p-3 z-10 transition-all duration-200 hover:scale-110"
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+
+                    {/* Enhanced Auto-slide Dots */}
+                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 z-10">
+                      {images.map((_, index) => (
+                        <button
+                          key={index}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCurrentImageIndex(index);
+                          }}
+                          className={`h-2 rounded-full transition-all duration-300 ${
+                            currentImageIndex === index 
+                              ? "bg-white w-6 shadow-lg" 
+                              : "bg-white/60 w-2 hover:bg-white/80"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {/* Image overlay gradient for better dot visibility */}
+                <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/30 to-transparent pointer-events-none" />
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4 py-4 md:py-6 lg:py-8">
@@ -1299,7 +1422,7 @@ useEffect(() => {
                       <TabsTrigger value="visa">
                         <ClipboardCheck className="mr-2 h-4 w-4" /> Visa Assistance
                       </TabsTrigger>
-                      <TabsTrigger value="download" onClick={generatePDF}>
+                      <TabsTrigger value="download">
                         <Download className="mr-2 h-4 w-4" /> Download Itinerary
                       </TabsTrigger>
                     </TabsList>
@@ -1530,31 +1653,86 @@ useEffect(() => {
                     </div>
 
                     <div className="border-t pt-4 space-y-2">
-  {packageData.original_price && (
-    <div className="flex justify-between text-sm md:text-base text-gray-500">
-      <span>Original Price:</span>
-      <span className="line-through">
-        ₹{(parseInt(packageData.original_price.replace(/[^0-9]/g, '')) < getCurrentPrice() 
-           ? parseInt(packageData.original_price.replace(/[^0-9]/g, '')) + 15000 
-           : parseInt(packageData.original_price.replace(/[^0-9]/g, ''))).toLocaleString()}
-      </span>
-    </div>
-  )}
+  {packageData.original_price && (() => {
+    const originalBasePrice = parseInt(packageData.original_price.replace(/[^0-9]/g, '')) || 0;
+    const currentPrice = getCurrentPrice();
+
+    // Flight cost = difference between withFlights price and withoutFlights price
+    const withFlightsPrice = 149000; // replace with dynamic if available
+    const withoutFlightsPrice = 74000; // replace with dynamic if available
+    const flightCost = withFlightsPrice - withoutFlightsPrice;
+
+    // Adjust original price
+    const adjustedOriginalPrice = withFlights 
+      ? originalBasePrice 
+      : (originalBasePrice - flightCost);
+
+    return (
+      <div className="flex justify-between text-sm md:text-base text-gray-500">
+        <span>Original Price:</span>
+        <span className="line-through">
+          ₹{(adjustedOriginalPrice * members).toLocaleString()}
+        </span>
+      </div>
+    );
+  })()}
+
   <div className="flex justify-between text-sm md:text-base">
-    <span>Package ({selectedDuration} days × {members} {members === 1 ? 'person' : 'people'})</span>
+    <span>
+      Package ({selectedDuration} days × {members} {members === 1 ? 'person' : 'people'})
+    </span>
     <span>₹{(getCurrentPrice() * members).toLocaleString()}</span>
   </div>
+
   {addedVisaCost > 0 && (
     <div className="flex justify-between text-sm md:text-base">
       <span>Visa Assistance</span>
       <span>₹{addedVisaCost.toLocaleString()}</span>
     </div>
   )}
+
   <div className="flex justify-between font-bold text-base md:text-lg border-t pt-2">
     <span>Total</span>
     <span className="text-green-600">₹{getTotalPrice().toLocaleString()}</span>
   </div>
+
+  {packageData.original_price && (() => {
+    const originalBasePrice = parseInt(packageData.original_price.replace(/[^0-9]/g, '')) || 0;
+    const currentPrice = getCurrentPrice();
+
+    const withFlightsPrice = 149000; // replace with dynamic if available
+    const withoutFlightsPrice = 74000; // replace with dynamic if available
+    const flightCost = withFlightsPrice - withoutFlightsPrice;
+
+    const adjustedOriginalPrice = withFlights 
+      ? originalBasePrice 
+      : (originalBasePrice - flightCost);
+
+    return (
+      <motion.div 
+        className="flex justify-between items-center mt-2 p-2 bg-green-50 rounded-lg border border-green-200"
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 500, damping: 15 }}
+      >
+        <span className="text-green-700 font-semibold text-sm">Saved:</span>
+        <div className="flex items-center gap-1">
+          <span className="text-green-700 font-bold">
+            ₹{((adjustedOriginalPrice * members) - (currentPrice * members)).toLocaleString()}
+          </span>
+          <motion.span
+            className="text-red-500"
+            animate={{ scale: [1, 1.2, 1] }}
+            transition={{ duration: 1.5, repeat: Infinity, repeatType: "reverse" }}
+          >
+            ❤️
+          </motion.span>
+        </div>
+      </motion.div>
+    );
+  })()}
 </div>
+
 
                     <div className="space-y-2 md:space-y-3">
                       <Button 
