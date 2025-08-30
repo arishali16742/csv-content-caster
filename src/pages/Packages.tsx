@@ -35,7 +35,7 @@ const Packages = () => {
   const [withFlights, setWithFlights] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const packagesPerPage = 6;
+  const packagesPerPage = 9;
   
   const navigate = useNavigate();
   const location = useLocation();
@@ -43,55 +43,108 @@ const Packages = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   const lastFocusedInput = useRef<'desktop' | 'mobile' | null>(null);
 
-useEffect(() => {
-  const fetchData = async () => {
-    try {
-      const { data: packagesData, error: packagesError } = await supabase
-        .from('packages')
-        .select('*')
-        .or('status.is.null,status.eq.published')
-        .contains('publish_to', ['packages'])
-        .order('position', { ascending: true });
-      
-      if (packagesError) throw packagesError;
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const { data: packagesData, error: packagesError } = await supabase
+          .from('packages')
+          .select('*')
+          .or('status.is.null,status.eq.published')
+          .contains('publish_to', ['packages'])
+          .order('position', { ascending: true });
+        
+        if (packagesError) throw packagesError;
 
-      const { data: detailsData, error: detailsError } = await supabase
-        .from('package_details')
-        .select('package_id, activity_details, attractions');
-      
-      if (detailsError) throw detailsError;
+        const { data: detailsData, error: detailsError } = await supabase
+          .from('package_details')
+          .select('package_id, activity_details, attractions');
+        
+        if (detailsError) throw detailsError;
 
-      const detailsMap = detailsData.reduce((acc, detail) => {
-        acc[detail.package_id] = detail;
-        return acc;
-      }, {});
+        const detailsMap = detailsData.reduce((acc, detail) => {
+          acc[detail.package_id] = detail;
+          return acc;
+        }, {});
 
-      setPackages(packagesData || []);
-      setPackageDetails(detailsMap || {});
-    } catch (error) {
-      console.error('Error fetching data:', error);
-    } finally {
-      setLoading(false);
+        setPackages(packagesData || []);
+        setPackageDetails(detailsMap || {});
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+    
+    const urlParams = new URLSearchParams(location.search);
+    const searchQuery = urlParams.get('search') || urlParams.get('destination') || '';
+    const pageParam = urlParams.get('page');
+    const countryParam = urlParams.get('country');
+    const moodParam = urlParams.get('mood');
+    const tripTypeParam = urlParams.get('tripType');
+    const dealTypeParam = urlParams.get('dealType');
+    const hotelCategoryParam = urlParams.get('hotelCategory');
+    const priceMinParam = urlParams.get('priceMin');
+    const priceMaxParam = urlParams.get('priceMax');
+    const flightsParam = urlParams.get('flights');
+    const sortParam = urlParams.get('sort');
+    
+    // Set values from URL parameters
+    setSearchInput(searchQuery);
+    setSearchDestination(searchQuery);
+    
+    if (countryParam) setSelectedCountry(countryParam);
+    if (moodParam) setSelectedMood(moodParam);
+    if (tripTypeParam) setSelectedTripType(tripTypeParam);
+    if (dealTypeParam) setSelectedDealType(dealTypeParam);
+    if (hotelCategoryParam) setSelectedHotelCategory(hotelCategoryParam);
+    if (priceMinParam && priceMaxParam) setPriceRange([parseInt(priceMinParam), parseInt(priceMaxParam)]);
+    if (flightsParam) setWithFlights(flightsParam === 'true');
+    if (sortParam) setSortBy(sortParam);
+    
+    // Set current page from URL if available
+    if (pageParam) {
+      const page = parseInt(pageParam);
+      if (!isNaN(page) && page > 0) {
+        setCurrentPage(page);
+      }
     }
-  };
 
-  fetchData();
-  
-  const urlParams = new URLSearchParams(location.search);
-  const searchQuery = urlParams.get('search') || urlParams.get('destination') || '';
-  const pageParam = urlParams.get('page');
-  
-  setSearchInput(searchQuery);
-  setSearchDestination(searchQuery);
-  
-  // Set current page from URL if available
-  if (pageParam) {
-    const page = parseInt(pageParam);
-    if (!isNaN(page) && page > 0) {
-      setCurrentPage(page);
+    // Restore scroll position if coming back from package details
+    const savedScrollPosition = sessionStorage.getItem('packagesScrollPosition');
+    if (savedScrollPosition) {
+      setTimeout(() => {
+        window.scrollTo(0, parseInt(savedScrollPosition));
+        sessionStorage.removeItem('packagesScrollPosition');
+      }, 100);
     }
-  }
-}, [location]);
+  }, [location]);
+
+  // Update URL whenever filters change
+  useEffect(() => {
+    const updateURL = () => {
+      const urlParams = new URLSearchParams();
+      
+      if (searchInput) urlParams.set('search', searchInput);
+      if (selectedCountry !== 'all') urlParams.set('country', selectedCountry);
+      if (selectedMood !== 'all') urlParams.set('mood', selectedMood);
+      if (selectedTripType !== 'all') urlParams.set('tripType', selectedTripType);
+      if (selectedDealType !== 'all') urlParams.set('dealType', selectedDealType);
+      if (selectedHotelCategory !== 'all') urlParams.set('hotelCategory', selectedHotelCategory);
+      if (priceRange[0] !== 0 || priceRange[1] !== 10000000) {
+        urlParams.set('priceMin', priceRange[0].toString());
+        urlParams.set('priceMax', priceRange[1].toString());
+      }
+      if (withFlights) urlParams.set('flights', 'true');
+      if (sortBy !== 'position') urlParams.set('sort', sortBy);
+      if (currentPage !== 1) urlParams.set('page', currentPage.toString());
+      
+      navigate(`/packages?${urlParams.toString()}`, { replace: true });
+    };
+
+    updateURL();
+  }, [searchInput, selectedCountry, selectedMood, selectedTripType, selectedDealType, selectedHotelCategory, priceRange, withFlights, sortBy, currentPage, navigate]);
 
   useEffect(() => {
     if (inputRef.current && lastFocusedInput.current) {
@@ -107,21 +160,21 @@ useEffect(() => {
   };
 
   const FilterContent = useCallback(({ inputRef, onFocus }: { 
-  inputRef: React.RefObject<HTMLInputElement>,
-  onFocus: (type: 'desktop' | 'mobile') => void 
-}) => (
-  <div className="space-y-4">
-    <div className="flex items-center justify-between">
-      <h3 className="text-lg font-semibold">Filters</h3>
-      <Button 
-        variant="ghost" 
-        onClick={clearAllFilters} // This calls the outer function
-        className="text-sm p-0 h-auto"
-        size="sm"
-      >
-        Clear All
-      </Button>
-    </div>
+    inputRef: React.RefObject<HTMLInputElement>,
+    onFocus: (type: 'desktop' | 'mobile') => void 
+  }) => (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold">Filters</h3>
+        <Button 
+          variant="ghost" 
+          onClick={clearAllFilters}
+          className="text-sm p-0 h-auto"
+          size="sm"
+        >
+          Clear All
+        </Button>
+      </div>
 
       <div>
         <label className="block text-sm font-medium mb-1">Destination</label>
@@ -137,7 +190,10 @@ useEffect(() => {
 
       <div>
         <label className="block text-sm font-medium mb-1">Country</label>
-        <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+        <Select value={selectedCountry} onValueChange={(value) => {
+          setSelectedCountry(value);
+          setCurrentPage(1);
+        }}>
           <SelectTrigger className="text-sm">
             <SelectValue placeholder="All Countries" />
           </SelectTrigger>
@@ -253,7 +309,7 @@ useEffect(() => {
             setWithFlights(checked === true);
             setCurrentPage(1);
           }}
-          className="h-3 w-3 scale-75" // Add scale-75 to shrink it further
+          className="h-3 w-3 scale-75"
         />
         <label htmlFor="with-flights-sidebar" className="text-sm">
           With Flights
@@ -263,25 +319,27 @@ useEffect(() => {
   ), [searchInput, selectedCountry, selectedMood, selectedTripType, selectedDealType, selectedHotelCategory, priceRange, withFlights, packages, showMobileFilters]);
 
   const clearAllFilters = () => {
-  setSearchInput('');
-  setSearchDestination('');
-  setSelectedCountry('all');
-  setSelectedMood('all');
-  setSelectedTripType('all');
-  setSelectedDealType('all');
-  setSelectedHotelCategory('all');
-  setPriceRange([0, 10000000]);
-  setWithFlights(false);
-  setCurrentPage(1);
-  navigate('/packages', { replace: true }); // This will clear all URL params including page
-};
+    setSearchInput('');
+    setSearchDestination('');
+    setSelectedCountry('all');
+    setSelectedMood('all');
+    setSelectedTripType('all');
+    setSelectedDealType('all');
+    setSelectedHotelCategory('all');
+    setPriceRange([0, 10000000]);
+    setWithFlights(false);
+    setSortBy('position');
+    setCurrentPage(1);
+    navigate('/packages', { replace: true });
+  };
 
   const handlePackageClick = (packageId: string) => {
-  const urlParams = new URLSearchParams(location.search);
-  urlParams.set('page', currentPage.toString());
-  
-  navigate(`/package/${packageId}?${urlParams.toString()}`);
-};
+    // Save current scroll position
+    sessionStorage.setItem('packagesScrollPosition', window.scrollY.toString());
+    
+    // Navigate to package detail - the filters are already preserved in the URL
+    navigate(`/package/${packageId}${location.search}`);
+  };
 
   const handleInputFocus = (type: 'desktop' | 'mobile') => {
     lastFocusedInput.current = type;
@@ -328,16 +386,10 @@ useEffect(() => {
   const totalPages = Math.ceil(sortedPackages.length / packagesPerPage);
 
   const paginate = (pageNumber: number) => {
-  if (pageNumber < 1 || pageNumber > totalPages) return;
-  
-  // Update URL with page parameter
-  const urlParams = new URLSearchParams(location.search);
-  urlParams.set('page', pageNumber.toString());
-  
-  navigate(`/packages?${urlParams.toString()}`, { replace: true });
-  setCurrentPage(pageNumber);
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-};
+    if (pageNumber < 1 || pageNumber > totalPages) return;
+    setCurrentPage(pageNumber);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -377,9 +429,10 @@ useEffect(() => {
             </div>
 
             <div className="w-full lg:w-3/4">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-3">
-                <h1 className="text-lg font-bold">
-                  {searchInput ? `Packages for "${searchInput}"` : 'All Packages'} 
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-3">
+                <h1 className="text-2xl font-bold text-gray-900">
+                  {selectedCountry !== 'all' ? `Packages in ${selectedCountry}` : 
+                   searchInput ? `Packages for "${searchInput}"` : 'All Packages'} 
                   <span className="text-sm font-normal text-gray-600 ml-2">({sortedPackages.length} found)</span>
                 </h1>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -387,7 +440,7 @@ useEffect(() => {
                     setSortBy(value);
                     setCurrentPage(1);
                   }}>
-                    <SelectTrigger className="w-full sm:w-36 text-sm h-9">
+                    <SelectTrigger className="w-full sm:w-40 text-sm h-9">
                       <SelectValue placeholder="Sort by" />
                     </SelectTrigger>
                     <SelectContent>
@@ -405,7 +458,7 @@ useEffect(() => {
                         setWithFlights(checked === true);
                         setCurrentPage(1);
                       }}
-                      className="h-3 w-3 scale-75" // Add scale-75 to shrink it further
+                      className="h-3 w-3 scale-75"
                     />
                     <label htmlFor="with-flights-top" className="text-xs">
                       With Flights
@@ -415,23 +468,22 @@ useEffect(() => {
               </div>
 
               {loading ? (
-                <div className="space-y-4">
-                  {[...Array(3)].map((_, i) => (
-                    <div key={i} className="flex flex-col sm:flex-row gap-3 bg-white rounded-lg shadow-sm border animate-pulse p-3">
-                      <div className="w-full sm:w-1/3 h-40 bg-gray-200 rounded-lg"></div>
-                      <div className="w-full sm:w-2/3 space-y-2">
-                        <div className="h-5 bg-gray-200 rounded w-3/4"></div>
-                        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                        <div className="h-3 bg-gray-200 rounded w-full"></div>
-                        <div className="h-3 bg-gray-200 rounded w-full"></div>
-                        <div className="h-3 bg-gray-200 rounded w-2/3"></div>
-                      </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {[...Array(6)].map((_, i) => (
+                    <div key={i} className="bg-white rounded-lg shadow-sm border animate-pulse p-4">
+                      <div className="w-full h-48 bg-gray-200 rounded-lg mb-4"></div>
+                      <div className="h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/2 mb-3"></div>
+                      <div className="h-3 bg-gray-200 rounded w-full mb-1"></div>
+                      <div className="h-3 bg-gray-200 rounded w-full mb-1"></div>
+                      <div className="h-3 bg-gray-200 rounded w-2/3 mb-4"></div>
+                      <div className="h-8 bg-gray-200 rounded"></div>
                     </div>
                   ))}
                 </div>
               ) : (
                 <>
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {currentPackages.map((pkg) => {
                       const activitiesCount = packageDetails[pkg.id]?.activity_details?.count || 0;
                       const attractionsCount = packageDetails[pkg.id]?.attractions?.length || 0;
@@ -439,70 +491,68 @@ useEffect(() => {
                       return (
                         <div 
                           key={pkg.id} 
-                          className="flex flex-col sm:flex-row gap-3 bg-white rounded-lg shadow-sm border overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+                          className="bg-white rounded-lg shadow-sm border overflow-hidden hover:shadow-md transition-shadow cursor-pointer flex flex-col"
                           onClick={() => handlePackageClick(pkg.id)}
                         >
-                          <div className="w-full sm:w-1/3 relative">
+                          <div className="relative">
                             <img 
                               src={pkg.image} 
                               alt={pkg.title}
-                              className="w-full h-[12rem] object-cover"
+                              className="w-full h-48 object-cover"
                             />
-                            <div className="absolute top-2 left-2 bg-blue-600 text-white px-1.5 py-0.5 rounded text-xs font-bold">
+                            <div className="absolute top-2 left-2 bg-blue-600 text-white px-2 py-1 rounded text-xs font-bold">
                               {pkg.duration}
                             </div>
                             {pkg.deal_type !== 'Regular' && (
-                              <div className="absolute top-2 right-2 bg-green-600 text-white px-1.5 py-0.5 rounded text-xs font-bold">
+                              <div className="absolute top-2 right-2 bg-green-600 text-white px-2 py-1 rounded text-xs font-bold">
                                 {pkg.deal_type}
                               </div>
                             )}
                           </div>
                           
-                          <div className="w-full sm:w-2/3 p-3 flex flex-col justify-between">
-                            <div>
-                              <div className="flex justify-between items-start mb-1">
-                                <h3 className="font-semibold text-base pr-2 line-clamp-2">{pkg.title}</h3>
-                                <div className="flex items-center text-yellow-500 flex-shrink-0">
-                                  <span className="text-xs">★</span>
-                                  <span className="text-xs ml-0.5">{pkg.rating}</span>
-                                </div>
-                              </div>
-                              
-                              <p className="text-gray-600 mb-2 text-sm">{pkg.country}</p>
-                              
-                              <div className="grid grid-cols-2 gap-1 mb-2">
-                                <div className="flex items-center text-xs text-gray-600">
-                                  <span className="mr-1">✈️</span>
-                                  <span className="truncate">{pkg.destinations?.join(', ') || 'Multiple'}</span>
-                                </div>
-                                <div className="flex items-center text-xs text-gray-600">
-                                  <span className="mr-1">🏨</span>
-                                  <span className="truncate">{pkg.hotel_category}</span>
-                                </div>
-                                <div className="flex items-center text-xs text-gray-600">
-                                  <span className="mr-1">🎭</span>
-                                  <span>Activities: {activitiesCount}</span>
-                                </div>
-                                <div className="flex items-center text-xs text-gray-600">
-                                  <span className="mr-1">🏛️</span>
-                                  <span>Attractions: {attractionsCount}</span>
-                                </div>
+                          <div className="p-4 flex flex-col flex-grow">
+                            <div className="flex justify-between items-start mb-2">
+                              <h3 className="font-semibold text-base line-clamp-2 flex-grow pr-2">{pkg.title}</h3>
+                              <div className="flex items-center text-yellow-500 flex-shrink-0">
+                                <span className="text-xs">★</span>
+                                <span className="text-xs ml-0.5">{pkg.rating}</span>
                               </div>
                             </div>
                             
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-1">
-                              <div className="text-xs text-gray-500">
-                                <span>{pkg.trip_type}</span>
+                            <p className="text-gray-600 mb-3 text-sm">{pkg.country}</p>
+                            
+                            <div className="space-y-2 mb-4 text-xs text-gray-600">
+                              <div className="flex items-center">
+                                <span className="mr-2">✈️</span>
+                                <span className="truncate">{pkg.destinations?.join(', ') || 'Multiple'}</span>
                               </div>
-                              <div className="text-right">
-                                {pkg.original_price && (
-                                  <span className="text-xs text-red-500 line-through block">
-                                    ₹{formatPrice(pkg.original_price)}
-                                  </span>
-                                )}
-                                <div className="text-base font-bold text-green-600">
-                                  ₹{formatPrice(pkg.price)}
-                                  <span className="text-xs font-normal text-gray-500 block">per person</span>
+                              <div className="flex items-center">
+                                <span className="mr-2">🏨</span>
+                                <span className="truncate">{pkg.hotel_category}</span>
+                              </div>
+                              <div className="flex items-center">
+                                <span className="mr-2">🎭</span>
+                                <span>Activities: {activitiesCount}</span>
+                              </div>
+                              <div className="flex items-center">
+                                <span className="mr-2">🏛️</span>
+                                <span>Attractions: {attractionsCount}</span>
+                              </div>
+                            </div>
+                            
+                            <div className="mt-auto pt-4 border-t">
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs text-gray-500">{pkg.trip_type}</span>
+                                <div className="text-right">
+                                  {pkg.original_price && (
+                                    <span className="text-xs text-red-500 line-through block">
+                                      ₹{formatPrice(pkg.original_price)}
+                                    </span>
+                                  )}
+                                  <div className="text-base font-bold text-green-600">
+                                    ₹{formatPrice(pkg.price)}
+                                    <span className="text-xs font-normal text-gray-500 block">per person</span>
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -513,7 +563,7 @@ useEffect(() => {
                   </div>
 
                   {totalPages > 1 && (
-                    <div className="mt-6">
+                    <div className="mt-8">
                       <Pagination>
                         <PaginationContent>
                           <PaginationItem>
@@ -574,13 +624,13 @@ useEffect(() => {
               )}
 
               {!loading && sortedPackages.length === 0 && (
-                <div className="text-center py-8">
-                  <h3 className="text-base font-medium text-gray-900 mb-1">No packages found</h3>
-                  <p className="text-sm text-gray-600">Try adjusting your filters to see more results.</p>
+                <div className="text-center py-12">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No packages found</h3>
+                  <p className="text-sm text-gray-600 mb-4">Try adjusting your filters to see more results.</p>
                   <Button 
                     variant="outline" 
                     onClick={clearAllFilters} 
-                    className="mt-3 text-sm"
+                    className="text-sm"
                     size="sm"
                   >
                     Clear All Filters
