@@ -13,6 +13,58 @@ import { Filter } from 'lucide-react';
 import { Slider } from "@/components/ui/slider";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 
+// Custom Loader Component with fixed image and animation
+// Custom Loader Component with fixed image and animation
+const PackageLoader = () => {
+  const [progress, setProgress] = useState(0);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          return 100;
+        }
+        return prev + 2; // Increase progress faster to reach 100%
+      });
+    }, 100); // Update every 100ms for faster completion
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
+      <div className="relative mb-6">
+        {/* Rectangular container for the image - larger dimensions */}
+        <div className="w-80 h-60 md:w-96 md:h-72 rounded-xl overflow-hidden border-4 border-travel-primary/20 shadow-lg">
+          <img 
+            src="https://iili.io/Kf4Cepe.md.jpg"
+            alt="Loading..."
+            className="w-full h-full object-cover"
+          />
+        </div>
+      </div>
+      
+      <div className="text-center">
+        <h2 className="text-3xl md:text-4xl font-bold text-travel-primary mb-2">Travellata</h2>
+        <p className="text-gray-600">Discovering amazing destinations for you...</p>
+      </div>
+      
+      {/* Progress bar */}
+      <div className="w-64 md:w-80 h-2 bg-gray-200 rounded-full mt-8 overflow-hidden">
+        <div 
+          className="h-full bg-travel-primary rounded-full transition-all duration-300 ease-linear"
+          style={{ width: `${progress}%` }}
+        ></div>
+      </div>
+      
+      <div className="mt-2 text-sm text-gray-500">
+        {progress}% Complete
+      </div>
+    </div>
+  );
+};
+
 const formatPrice = (price: string | undefined) => {
   if (!price) return '0';
   const numericValue = parseInt(price.replace(/[^0-9]/g, '')) || 0;
@@ -35,6 +87,9 @@ const Packages = () => {
   const [withFlights, setWithFlights] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [showLoader, setShowLoader] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  
   const packagesPerPage = 9;
   
   const navigate = useNavigate();
@@ -42,6 +97,7 @@ const Packages = () => {
   
   const inputRef = useRef<HTMLInputElement>(null);
   const lastFocusedInput = useRef<'desktop' | 'mobile' | null>(null);
+  const hasAppliedFiltersFromURL = useRef(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -68,49 +124,60 @@ const Packages = () => {
 
         setPackages(packagesData || []);
         setPackageDetails(detailsMap || {});
+
+        // Parse URL parameters AFTER data is loaded
+        if (!hasAppliedFiltersFromURL.current) {
+          const urlParams = new URLSearchParams(location.search);
+          const searchQuery = urlParams.get('search') || urlParams.get('destination') || '';
+          const pageParam = urlParams.get('page');
+          const countryParam = urlParams.get('country');
+          const moodParam = urlParams.get('mood');
+          const tripTypeParam = urlParams.get('tripType');
+          const dealTypeParam = urlParams.get('dealType');
+          const hotelCategoryParam = urlParams.get('hotelCategory');
+          const priceMinParam = urlParams.get('priceMin');
+          const priceMaxParam = urlParams.get('priceMax');
+          const flightsParam = urlParams.get('flights');
+          const sortParam = urlParams.get('sort');
+          
+          // Set values from URL parameters
+          setSearchInput(searchQuery);
+          setSearchDestination(searchQuery);
+          
+          if (countryParam) setSelectedCountry(countryParam);
+          if (moodParam) setSelectedMood(moodParam);
+          if (tripTypeParam) setSelectedTripType(tripTypeParam);
+          if (dealTypeParam) setSelectedDealType(dealTypeParam);
+          if (hotelCategoryParam) setSelectedHotelCategory(hotelCategoryParam);
+          if (priceMinParam && priceMaxParam) setPriceRange([parseInt(priceMinParam), parseInt(priceMaxParam)]);
+          if (flightsParam) setWithFlights(flightsParam === 'true');
+          if (sortParam) setSortBy(sortParam);
+          
+          // Set current page from URL if available
+          if (pageParam) {
+            const page = parseInt(pageParam);
+            if (!isNaN(page) && page > 0) {
+              setCurrentPage(page);
+            }
+          }
+          
+          hasAppliedFiltersFromURL.current = true;
+        }
+
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
         setLoading(false);
+        setIsInitialLoad(false);
+        // Show loader for minimum 3 seconds even if data loads faster
+        setTimeout(() => {
+          setShowLoader(false);
+        }, 3000);
       }
     };
 
     fetchData();
     
-    const urlParams = new URLSearchParams(location.search);
-    const searchQuery = urlParams.get('search') || urlParams.get('destination') || '';
-    const pageParam = urlParams.get('page');
-    const countryParam = urlParams.get('country');
-    const moodParam = urlParams.get('mood');
-    const tripTypeParam = urlParams.get('tripType');
-    const dealTypeParam = urlParams.get('dealType');
-    const hotelCategoryParam = urlParams.get('hotelCategory');
-    const priceMinParam = urlParams.get('priceMin');
-    const priceMaxParam = urlParams.get('priceMax');
-    const flightsParam = urlParams.get('flights');
-    const sortParam = urlParams.get('sort');
-    
-    // Set values from URL parameters
-    setSearchInput(searchQuery);
-    setSearchDestination(searchQuery);
-    
-    if (countryParam) setSelectedCountry(countryParam);
-    if (moodParam) setSelectedMood(moodParam);
-    if (tripTypeParam) setSelectedTripType(tripTypeParam);
-    if (dealTypeParam) setSelectedDealType(dealTypeParam);
-    if (hotelCategoryParam) setSelectedHotelCategory(hotelCategoryParam);
-    if (priceMinParam && priceMaxParam) setPriceRange([parseInt(priceMinParam), parseInt(priceMaxParam)]);
-    if (flightsParam) setWithFlights(flightsParam === 'true');
-    if (sortParam) setSortBy(sortParam);
-    
-    // Set current page from URL if available
-    if (pageParam) {
-      const page = parseInt(pageParam);
-      if (!isNaN(page) && page > 0) {
-        setCurrentPage(page);
-      }
-    }
-
     // Restore scroll position if coming back from package details
     const savedScrollPosition = sessionStorage.getItem('packagesScrollPosition');
     if (savedScrollPosition) {
@@ -121,8 +188,10 @@ const Packages = () => {
     }
   }, [location]);
 
-  // Update URL whenever filters change
+  // Update URL whenever filters change (but not on initial load)
   useEffect(() => {
+    if (isInitialLoad) return;
+    
     const updateURL = () => {
       const urlParams = new URLSearchParams();
       
@@ -144,7 +213,7 @@ const Packages = () => {
     };
 
     updateURL();
-  }, [searchInput, selectedCountry, selectedMood, selectedTripType, selectedDealType, selectedHotelCategory, priceRange, withFlights, sortBy, currentPage, navigate]);
+  }, [searchInput, selectedCountry, selectedMood, selectedTripType, selectedDealType, selectedHotelCategory, priceRange, withFlights, sortBy, currentPage, navigate, isInitialLoad]);
 
   useEffect(() => {
     if (inputRef.current && lastFocusedInput.current) {
@@ -348,7 +417,7 @@ const Packages = () => {
   const filteredPackages = packages.filter(pkg => {
     if (searchDestination) {
       const searchTerm = searchDestination.toLowerCase();
-      const hasMatch = [pkg.title, pkg.country, ...(pkg.destinations || [])]
+      const hasMatch = [pkg.title, pkg.country, ...(Array.isArray(pkg.destinations) ? pkg.destinations : [])]
         .some(val => val && typeof val === 'string' && (
           val.toLowerCase().includes(searchTerm) ||
           searchTerm.split(/,\s*/).some(part => val.toLowerCase().includes(part))
@@ -390,6 +459,10 @@ const Packages = () => {
     setCurrentPage(pageNumber);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  if (showLoader) {
+    return <PackageLoader />;
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">

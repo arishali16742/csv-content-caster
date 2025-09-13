@@ -46,6 +46,44 @@ import { cn } from '@/lib/utils';
 import BookingPopup from '../components/BookingPopup';
 import jsPDF from 'jspdf';
 
+// Custom Loader Component
+const PackageDetailLoader = () => {
+  return (
+    <div className="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
+      <div className="relative mb-6">
+        {/* Circular container for the GIF */}
+        <div className="w-48 h-48 md:w-64 md:h-64 rounded-full overflow-hidden border-4 border-travel-primary/20 shadow-lg">
+          <img 
+            src="https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExM2h5c3IzMndpbDg2dDdzbGYxc3VvdHdpaDBoeWlkcHA3cWxpM2JidiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/vhlboG0kGaiCx1D9cd/giphy.gif"
+            alt="Loading..."
+            className="w-full h-full object-cover"
+          />
+        </div>
+        
+        {/* Optional: Add a subtle spinning border for extra effect */}
+        <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-travel-primary animate-spin"></div>
+      </div>
+      
+      <div className="text-center">
+        <h2 className="text-3xl md:text-4xl font-bold text-travel-primary mb-2">Travellata</h2>
+        <p className="text-gray-600">Crafting your perfect journey...</p>
+      </div>
+      
+      {/* Progress bar that takes 15 seconds to complete */}
+      <div className="w-64 md:w-80 h-2 bg-gray-200 rounded-full mt-8 overflow-hidden">
+        <div 
+          className="h-full bg-travel-primary rounded-full transition-all duration-15000 ease-linear"
+          style={{ width: '0%' }}
+          onAnimationEnd={(e) => {
+            // This will automatically expand over 15 seconds
+            (e.target as HTMLElement).style.width = '100%';
+          }}
+        ></div>
+      </div>
+    </div>
+  );
+};
+
 interface Package {
   id: string;
   title: string;
@@ -184,34 +222,42 @@ const PackageDetail = () => {
   const [visaDuration, setVisaDuration] = useState('15 Days');
   const [visaMembers, setVisaMembers] = useState(1);
   const [addedVisaCost, setAddedVisaCost] = useState(0);
-const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [showLoader, setShowLoader] = useState(true);
 
-// Move images declaration here so it's available for useEffect below
-const images = packageData?.gallery_images && packageData.gallery_images.length > 0 
-  ? packageData.gallery_images 
-  : [packageData?.image].filter(Boolean);
+  // Move images declaration here so it's available for useEffect below
+  const images = packageData?.gallery_images && packageData.gallery_images.length > 0 
+    ? packageData.gallery_images 
+    : [packageData?.image].filter(Boolean);
 
-useEffect(() => {
-  if (images.length <= 1) return;
+  // Add this useEffect to control the loader display time
+  useEffect(() => {
+    const loaderTimer = setTimeout(() => {
+      setShowLoader(false);
+    }, 15000); // 15 seconds
 
-  const interval = setInterval(() => {
-    setCurrentImageIndex((prev) => (prev + 1) % images.length);
-  }, 2000);
+    return () => clearTimeout(loaderTimer);
+  }, []);
 
-  return () => clearInterval(interval);
-}, [images.length]);
+  useEffect(() => {
+    if (images.length <= 1) return;
 
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prev) => (prev + 1) % images.length);
+    }, 2000);
 
-useEffect(() => {
-  if (packageData?.duration) {
-    // Extract the number of days from "3 Days / 2 Nights" format
-    const daysMatch = packageData.duration.match(/^(\d+)\s*Days/i);
-    if (daysMatch && daysMatch[1]) {
-      setSelectedDuration(daysMatch[1]);
+    return () => clearInterval(interval);
+  }, [images.length]);
+
+  useEffect(() => {
+    if (packageData?.duration) {
+      // Extract the number of days from "3 Days / 2 Nights" format
+      const daysMatch = packageData.duration.match(/^(\d+)\s*Days/i);
+      if (daysMatch && daysMatch[1]) {
+        setSelectedDuration(daysMatch[1]);
+      }
     }
-  }
-}, [packageData]);
-  
+  }, [packageData]);
   
   useEffect(() => {
     const checkMobile = () => {
@@ -1006,6 +1052,10 @@ const getImageData = (url: string): Promise<string> => {
     if (!visaDestination || !visaRates[visaDestination]) return 0;
     return visaRates[visaDestination][visaDuration] || 0;
   };
+
+  if (showLoader) {
+    return <PackageDetailLoader />;
+  }
 
   if (loading) {
     return (
@@ -1925,3 +1975,4 @@ const getImageData = (url: string): Promise<string> => {
 };
 
 export default PackageDetail;
+
