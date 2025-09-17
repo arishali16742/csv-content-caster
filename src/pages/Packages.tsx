@@ -14,7 +14,6 @@ import { Slider } from "@/components/ui/slider";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 
 // Custom Loader Component with fixed image and animation
-// Custom Loader Component with fixed image and animation
 const PackageLoader = () => {
   const [progress, setProgress] = useState(0);
   
@@ -85,10 +84,19 @@ const Packages = () => {
   const [selectedHotelCategory, setSelectedHotelCategory] = useState('all');
   const [priceRange, setPriceRange] = useState([0, 10000000]);
   const [withFlights, setWithFlights] = useState(false);
+  const [withoutFlights, setWithoutFlights] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [showLoader, setShowLoader] = useState(true);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [priceRanges, setPriceRanges] = useState([
+    { label: '₹0–₹10,000', value: '0-10000' },
+    { label: '₹10,000–₹25,000', value: '10000-25000' },
+    { label: '₹25,000–₹50,000', value: '25000-50000' },
+    { label: '₹50,000–₹75,000', value: '50000-75000' },
+    { label: '₹75,000–₹100,000', value: '75000-100000' },
+    { label: 'All Prices', value: '0-10000000' }
+  ]);
   
   const packagesPerPage = 9;
   
@@ -138,6 +146,7 @@ const Packages = () => {
           const priceMinParam = urlParams.get('priceMin');
           const priceMaxParam = urlParams.get('priceMax');
           const flightsParam = urlParams.get('flights');
+          const withoutFlightsParam = urlParams.get('withoutFlights');
           const sortParam = urlParams.get('sort');
           
           // Set values from URL parameters
@@ -151,6 +160,7 @@ const Packages = () => {
           if (hotelCategoryParam) setSelectedHotelCategory(hotelCategoryParam);
           if (priceMinParam && priceMaxParam) setPriceRange([parseInt(priceMinParam), parseInt(priceMaxParam)]);
           if (flightsParam) setWithFlights(flightsParam === 'true');
+          if (withoutFlightsParam) setWithoutFlights(withoutFlightsParam === 'true');
           if (sortParam) setSortBy(sortParam);
           
           // Set current page from URL if available
@@ -188,6 +198,137 @@ const Packages = () => {
     }
   }, [location]);
 
+  const getFilteredOptions = useCallback(() => {
+    // First, filter packages based on all current filters except the one being changed
+    let filtered = [...packages];
+    
+    // Apply search filter
+    if (searchDestination) {
+      const searchTerm = searchDestination.toLowerCase();
+      filtered = filtered.filter(pkg => {
+        return [pkg.title, pkg.country, ...(Array.isArray(pkg.destinations) ? pkg.destinations : [])]
+          .some(val => val && typeof val === 'string' && (
+            val.toLowerCase().includes(searchTerm) ||
+            searchTerm.split(/,\s*/).some(part => val.toLowerCase().includes(part))
+          ));
+      });
+    }
+    
+    // Apply price filter
+    filtered = filtered.filter(pkg => {
+      const packagePrice = parseInt(pkg.price?.replace(/[^0-9]/g, '') || '0');
+      return packagePrice >= priceRange[0] && packagePrice <= priceRange[1];
+    });
+    
+    // Apply flight filters
+    if (withFlights) {
+      filtered = filtered.filter(pkg => {
+        const includes = pkg.includes || [];
+        return includes.includes("Flights");
+      });
+    }
+    
+    if (withoutFlights) {
+      filtered = filtered.filter(pkg => {
+        const includes = pkg.includes || [];
+        return !includes.includes("Flights");
+      });
+    }
+    
+    // Apply country filter
+    if (selectedCountry !== 'all') {
+      filtered = filtered.filter(pkg => pkg.country === selectedCountry);
+    }
+    
+    // Apply mood filter
+    if (selectedMood !== 'all') {
+      filtered = filtered.filter(pkg => pkg.mood === selectedMood);
+    }
+    
+    // Apply trip type filter
+    if (selectedTripType !== 'all') {
+      filtered = filtered.filter(pkg => pkg.trip_type === selectedTripType);
+    }
+    
+    // Apply deal type filter
+    if (selectedDealType !== 'all') {
+      filtered = filtered.filter(pkg => pkg.deal_type === selectedDealType);
+    }
+    
+    // Apply hotel category filter
+    if (selectedHotelCategory !== 'all') {
+      filtered = filtered.filter(pkg => pkg.hotel_category === selectedHotelCategory);
+    }
+    
+    // Get unique values for each filter from the filtered packages
+    const countries = [...new Set(filtered.map(pkg => pkg.country))].filter(Boolean).sort();
+    const moods = [...new Set(filtered.map(pkg => pkg.mood))].filter(Boolean).sort();
+    const tripTypes = [...new Set(filtered.map(pkg => pkg.trip_type))].filter(Boolean).sort();
+    const dealTypes = [...new Set(filtered.map(pkg => pkg.deal_type))].filter(Boolean);
+    const hotelCategories = [...new Set(filtered.map(pkg => pkg.hotel_category))].filter(Boolean);
+    
+    // Get available price ranges based on filtered packages
+    const packagePrices = filtered
+      .map(pkg => parseInt(pkg.price?.replace(/[^0-9]/g, '') || '0'))
+      .filter(price => price > 0);
+    
+    let availablePriceRanges = [];
+    
+    if (packagePrices.length > 0) {
+      // Define price brackets
+      const brackets = [
+        { min: 0, max: 10000, label: '₹0–₹10,000' },
+        { min: 10000, max: 25000, label: '₹10,000–₹25,000' },
+        { min: 25000, max: 50000, label: '₹25,000–₹50,000' },
+        { min: 50000, max: 75000, label: '₹50,000–₹75,000' },
+        { min: 75000, max: 100000, label: '₹75,000–₹100,000' },
+        { min: 100000, max: 150000, label: '₹100,000–₹150,000' },
+        { min: 150000, max: 200000, label: '₹150,000–₹200,000' },
+        { min: 200000, max: 300000, label: '₹200,000–₹300,000' },
+        { min: 300000, max: 500000, label: '₹300,000–₹500,000' },
+        { min: 500000, max: 10000000, label: '₹500,000+' }
+      ];
+      
+      // Filter brackets to only include those that have packages
+      const availableBrackets = brackets.filter(bracket => {
+        return packagePrices.some(price => price >= bracket.min && price <= bracket.max);
+      });
+      
+      // Add "All Prices" option
+      availableBrackets.push({ min: 0, max: 10000000, label: 'All Prices' });
+      
+      // Convert to the format needed for the select component
+      availablePriceRanges = availableBrackets.map(bracket => ({
+        label: bracket.label,
+        value: `${bracket.min}-${bracket.max}`
+      }));
+    } else {
+      availablePriceRanges = [{ label: 'All Prices', value: '0-10000000' }];
+    }
+    
+    // Check flight options availability
+    const hasPackagesWithFlights = filtered.some(pkg => {
+      const includes = pkg.includes || [];
+      return includes.includes("Flights");
+    });
+    
+    const hasPackagesWithoutFlights = filtered.some(pkg => {
+      const includes = pkg.includes || [];
+      return !includes.includes("Flights");
+    });
+    
+    return {
+      countries,
+      moods,
+      tripTypes,
+      dealTypes,
+      hotelCategories,
+      priceRanges: availablePriceRanges,
+      hasPackagesWithFlights,
+      hasPackagesWithoutFlights
+    };
+  }, [packages, searchDestination, priceRange, withFlights, withoutFlights, selectedCountry, selectedMood, selectedTripType, selectedDealType, selectedHotelCategory]);
+
   // Update URL whenever filters change (but not on initial load)
   useEffect(() => {
     if (isInitialLoad) return;
@@ -206,6 +347,7 @@ const Packages = () => {
         urlParams.set('priceMax', priceRange[1].toString());
       }
       if (withFlights) urlParams.set('flights', 'true');
+      if (withoutFlights) urlParams.set('withoutFlights', 'true');
       if (sortBy !== 'position') urlParams.set('sort', sortBy);
       if (currentPage !== 1) urlParams.set('page', currentPage.toString());
       
@@ -213,7 +355,7 @@ const Packages = () => {
     };
 
     updateURL();
-  }, [searchInput, selectedCountry, selectedMood, selectedTripType, selectedDealType, selectedHotelCategory, priceRange, withFlights, sortBy, currentPage, navigate, isInitialLoad]);
+  }, [searchInput, selectedCountry, selectedMood, selectedTripType, selectedDealType, selectedHotelCategory, priceRange, withFlights, withoutFlights, sortBy, currentPage, navigate, isInitialLoad]);
 
   useEffect(() => {
     if (inputRef.current && lastFocusedInput.current) {
@@ -231,161 +373,195 @@ const Packages = () => {
   const FilterContent = useCallback(({ inputRef, onFocus }: { 
     inputRef: React.RefObject<HTMLInputElement>,
     onFocus: (type: 'desktop' | 'mobile') => void 
-  }) => (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Filters</h3>
-        <Button 
-          variant="ghost" 
-          onClick={clearAllFilters}
-          className="text-sm p-0 h-auto"
-          size="sm"
-        >
-          Clear All
-        </Button>
-      </div>
+  }) => {
+    const { 
+      countries, 
+      moods, 
+      tripTypes, 
+      dealTypes, 
+      hotelCategories, 
+      priceRanges: availablePriceRanges,
+      hasPackagesWithFlights,
+      hasPackagesWithoutFlights
+    } = getFilteredOptions();
+    
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold">Filters</h3>
+          <Button 
+            variant="ghost" 
+            onClick={clearAllFilters}
+            className="text-sm p-0 h-auto"
+            size="sm"
+          >
+            Clear All
+          </Button>
+        </div>
 
-      <div>
-        <label className="block text-sm font-medium mb-1">Destination</label>
-        <Input
-          ref={inputRef}
-          placeholder="Search destination..."
-          value={searchInput}
-          onChange={handleSearchChange}
-          onFocus={() => onFocus(showMobileFilters ? 'mobile' : 'desktop')}
-          className="text-sm"
-        />
-      </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Destination</label>
+          <Input
+            ref={inputRef}
+            placeholder="Search destination..."
+            value={searchInput}
+            onChange={handleSearchChange}
+            onFocus={() => onFocus(showMobileFilters ? 'mobile' : 'desktop')}
+            className="text-sm"
+          />
+        </div>
 
-      <div>
-        <label className="block text-sm font-medium mb-1">Country</label>
-        <Select value={selectedCountry} onValueChange={(value) => {
-          setSelectedCountry(value);
-          setCurrentPage(1);
-        }}>
-          <SelectTrigger className="text-sm">
-            <SelectValue placeholder="All Countries" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Countries</SelectItem>
-            {[...new Set(packages.map(pkg => pkg.country))].filter(Boolean).map(country => (
-              <SelectItem key={country} value={country}>{country}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium mb-1">Price Range</label>
-        <Select
-          value={`${priceRange[0]}-${priceRange[1]}`}
-          onValueChange={(value) => {
-            const [min, max] = value.split("-").map(Number);
-            setPriceRange([min, max]);
+        <div>
+          <label className="block text-sm font-medium mb-1">Country</label>
+          <Select value={selectedCountry} onValueChange={(value) => {
+            setSelectedCountry(value);
             setCurrentPage(1);
-          }}
-        >
-          <SelectTrigger className="text-sm">
-            <SelectValue placeholder="Select Price Range" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="0-10000">₹0–₹10,000</SelectItem>
-            <SelectItem value="10000-25000">₹10,000–₹25,000</SelectItem>
-            <SelectItem value="25000-50000">₹25,000–₹50,000</SelectItem>
-            <SelectItem value="50000-100000">₹50,000–₹100,000</SelectItem>
-            <SelectItem value="0-10000000">All Prices</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+          }}>
+            <SelectTrigger className="text-sm">
+              <SelectValue placeholder="All Countries" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Countries</SelectItem>
+              {countries.map(country => (
+                <SelectItem key={country} value={country}>{country}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-      <div>
-        <label className="block text-sm font-medium mb-1">Mood</label>
-        <Select value={selectedMood} onValueChange={(value) => {
-          setSelectedMood(value);
-          setCurrentPage(1);
-        }}>
-          <SelectTrigger className="text-sm">
-            <SelectValue placeholder="All Moods" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Moods</SelectItem>
-            {[...new Set(packages.map(pkg => pkg.mood))].filter(Boolean).map(mood => (
-              <SelectItem key={mood} value={mood}>{mood}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Price Range</label>
+          <Select
+            value={`${priceRange[0]}-${priceRange[1]}`}
+            onValueChange={(value) => {
+              const [min, max] = value.split("-").map(Number);
+              setPriceRange([min, max]);
+              setCurrentPage(1);
+            }}
+          >
+            <SelectTrigger className="text-sm">
+              <SelectValue placeholder="Select Price Range" />
+            </SelectTrigger>
+            <SelectContent>
+              {availablePriceRanges.map(range => (
+                <SelectItem key={range.value} value={range.value}>{range.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-      <div>
-        <label className="block text-sm font-medium mb-1">Trip Type</label>
-        <Select value={selectedTripType} onValueChange={(value) => {
-          setSelectedTripType(value);
-          setCurrentPage(1);
-        }}>
-          <SelectTrigger className="text-sm">
-            <SelectValue placeholder="All Types" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            {[...new Set(packages.map(pkg => pkg.trip_type))].filter(Boolean).map(type => (
-              <SelectItem key={type} value={type}>{type}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium mb-1">Deal Type</label>
-        <Select value={selectedDealType} onValueChange={(value) => {
-          setSelectedDealType(value);
-          setCurrentPage(1);
-        }}>
-          <SelectTrigger className="text-sm">
-            <SelectValue placeholder="All Deals" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Deals</SelectItem>
-            {[...new Set(packages.map(pkg => pkg.deal_type))].filter(Boolean).map(deal => (
-              <SelectItem key={deal} value={deal}>{deal}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium mb-1">Hotel Category</label>
-        <Select value={selectedHotelCategory} onValueChange={(value) => {
-          setSelectedHotelCategory(value);
-          setCurrentPage(1);
-        }}>
-          <SelectTrigger className="text-sm">
-            <SelectValue placeholder="All Categories" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {[...new Set(packages.map(pkg => pkg.hotel_category))].filter(Boolean).map(category => (
-              <SelectItem key={category} value={category}>{category}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="flex items-center space-x-2 pt-2">
-        <Checkbox
-          id="with-flights-sidebar"
-          checked={withFlights}
-          onCheckedChange={(checked) => {
-            setWithFlights(checked === true);
+        <div>
+          <label className="block text-sm font-medium mb-1">Mood</label>
+          <Select value={selectedMood} onValueChange={(value) => {
+            setSelectedMood(value);
             setCurrentPage(1);
-          }}
-          className="h-3 w-3 scale-75"
-        />
-        <label htmlFor="with-flights-sidebar" className="text-sm">
-          With Flights
-        </label>
+          }}>
+            <SelectTrigger className="text-sm">
+              <SelectValue placeholder="All Moods" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Moods</SelectItem>
+              {moods.map(mood => (
+                <SelectItem key={mood} value={mood}>{mood}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Trip Type</label>
+          <Select value={selectedTripType} onValueChange={(value) => {
+            setSelectedTripType(value);
+            setCurrentPage(1);
+          }}>
+            <SelectTrigger className="text-sm">
+              <SelectValue placeholder="All Types" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              {tripTypes.map(type => (
+                <SelectItem key={type} value={type}>{type}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Deal Type</label>
+          <Select value={selectedDealType} onValueChange={(value) => {
+            setSelectedDealType(value);
+            setCurrentPage(1);
+          }}>
+            <SelectTrigger className="text-sm">
+              <SelectValue placeholder="All Deals" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Deals</SelectItem>
+              {dealTypes.map(deal => (
+                <SelectItem key={deal} value={deal}>{deal}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Hotel Category</label>
+          <Select value={selectedHotelCategory} onValueChange={(value) => {
+            setSelectedHotelCategory(value);
+            setCurrentPage(1);
+          }}>
+            <SelectTrigger className="text-sm">
+              <SelectValue placeholder="All Categories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {hotelCategories.map(category => (
+                <SelectItem key={category} value={category}>{category}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2 pt-2">
+          {hasPackagesWithFlights && (
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="with-flights-sidebar"
+                checked={withFlights}
+                onCheckedChange={(checked) => {
+                  setWithFlights(checked === true);
+                  if (checked) setWithoutFlights(false);
+                  setCurrentPage(1);
+                }}
+                className="h-3 w-3 scale-75"
+              />
+              <label htmlFor="with-flights-sidebar" className="text-sm">
+                With Flights
+              </label>
+            </div>
+          )}
+          
+          {hasPackagesWithoutFlights && (
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="without-flights-sidebar"
+                checked={withoutFlights}
+                onCheckedChange={(checked) => {
+                  setWithoutFlights(checked === true);
+                  if (checked) setWithFlights(false);
+                  setCurrentPage(1);
+                }}
+                className="h-3 w-3 scale-75"
+              />
+              <label htmlFor="without-flights-sidebar" className="text-sm">
+                Without Flights
+              </label>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  ), [searchInput, selectedCountry, selectedMood, selectedTripType, selectedDealType, selectedHotelCategory, priceRange, withFlights, packages, showMobileFilters]);
+    );
+  }, [searchInput, selectedCountry, selectedMood, selectedTripType, selectedDealType, selectedHotelCategory, priceRange, withFlights, withoutFlights, showMobileFilters, getFilteredOptions]);
 
   const clearAllFilters = () => {
     setSearchInput('');
@@ -397,6 +573,7 @@ const Packages = () => {
     setSelectedHotelCategory('all');
     setPriceRange([0, 10000000]);
     setWithFlights(false);
+    setWithoutFlights(false);
     setSortBy('position');
     setCurrentPage(1);
     navigate('/packages', { replace: true });
@@ -427,6 +604,11 @@ const Packages = () => {
 
     const packagePrice = parseInt(pkg.price?.replace(/[^0-9]/g, '') || '0');
     if (packagePrice < priceRange[0] || packagePrice > priceRange[1]) return false;
+    
+    // Flight filters based on includes field
+    const includes = pkg.includes || [];
+    if (withFlights && !includes.includes("Flights")) return false;
+    if (withoutFlights && includes.includes("Flights")) return false;
 
     return (
       (selectedCountry === 'all' || pkg.country === selectedCountry) &&
@@ -463,6 +645,8 @@ const Packages = () => {
   if (showLoader) {
     return <PackageLoader />;
   }
+
+  const { hasPackagesWithFlights, hasPackagesWithoutFlights } = getFilteredOptions();
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -523,20 +707,40 @@ const Packages = () => {
                       <SelectItem value="rating">Rating</SelectItem>
                     </SelectContent>
                   </Select>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="with-flights-top"
-                      checked={withFlights}
-                      onCheckedChange={(checked) => {
-                        setWithFlights(checked === true);
-                        setCurrentPage(1);
-                      }}
-                      className="h-3 w-3 scale-75"
-                    />
-                    <label htmlFor="with-flights-top" className="text-xs">
-                      With Flights
-                    </label>
-                  </div>
+                  {hasPackagesWithFlights && (
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="with-flights-top"
+                        checked={withFlights}
+                        onCheckedChange={(checked) => {
+                          setWithFlights(checked === true);
+                          if (checked) setWithoutFlights(false);
+                          setCurrentPage(1);
+                        }}
+                        className="h-3 w-3 scale-75"
+                      />
+                      <label htmlFor="with-flights-top" className="text-xs">
+                        With Flights
+                      </label>
+                    </div>
+                  )}
+                  {hasPackagesWithoutFlights && (
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="without-flights-top"
+                        checked={withoutFlights}
+                        onCheckedChange={(checked) => {
+                          setWithoutFlights(checked === true);
+                          if (checked) setWithFlights(false);
+                          setCurrentPage(1);
+                        }}
+                        className="h-3 w-3 scale-75"
+                      />
+                      <label htmlFor="without-flights-top" className="text-xs">
+                        Without Flights
+                      </label>
+                    </div>
+                  )}
                 </div>
               </div>
 
