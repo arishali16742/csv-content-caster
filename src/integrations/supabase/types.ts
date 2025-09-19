@@ -1568,6 +1568,7 @@ export type Database = {
           duration: string | null
           id: string
           is_featured: boolean | null
+          package_id: string | null
           position: number | null
           status: string | null
           thumbnail_url: string | null
@@ -1581,6 +1582,7 @@ export type Database = {
           duration?: string | null
           id?: string
           is_featured?: boolean | null
+          package_id?: string | null
           position?: number | null
           status?: string | null
           thumbnail_url?: string | null
@@ -1594,6 +1596,7 @@ export type Database = {
           duration?: string | null
           id?: string
           is_featured?: boolean | null
+          package_id?: string | null
           position?: number | null
           status?: string | null
           thumbnail_url?: string | null
@@ -1601,7 +1604,15 @@ export type Database = {
           updated_at?: string
           video_url?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "videos_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "packages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       visa_free_destinations: {
         Row: {

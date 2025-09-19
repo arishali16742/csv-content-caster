@@ -11,9 +11,14 @@ interface Video {
   thumbnail_url?: string;
   duration?: string;
   is_featured: boolean;
+  package_id?: string;
 }
 
-const VideoSection = () => {
+interface VideoSectionProps {
+  packageId?: string;
+}
+
+const VideoSection = ({ packageId }: VideoSectionProps) => {
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
@@ -21,15 +26,23 @@ const VideoSection = () => {
 
   useEffect(() => {
     loadVideos();
-  }, []);
+  }, [packageId]);
 
   const loadVideos = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('videos')
         .select('*')
-        .eq('status', 'published')
-        .order('position', { ascending: true });
+        .eq('status', 'published');
+
+      // If packageId is provided, filter by package_id, otherwise get videos without package_id (global videos)
+      if (packageId) {
+        query = query.eq('package_id', packageId);
+      } else {
+        query = query.is('package_id', null);
+      }
+
+      const { data, error } = await query.order('position', { ascending: true });
 
       if (error) {
         console.error('Error loading videos:', error);

@@ -44,6 +44,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import BookingPopup from '../components/BookingPopup';
+import VideoSection from '../components/VideoSection';
 import jsPDF from 'jspdf';
 
 interface Package {
@@ -228,6 +229,11 @@ useEffect(() => {
       fetchPackageData();
       loadVisaRates();
     }
+  }, [id]);
+
+  // Scroll to top when component mounts or id changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [id]);
 
   useEffect(() => {
@@ -1414,6 +1420,9 @@ const getImageData = (url: string): Promise<string> => {
                   </Tabs>
                 </CardContent>
               </Card>
+
+              {/* Package Videos Section */}
+              <VideoSection packageId={packageData?.id} />
 
               <Card>
                 <CardContent className="p-6">
