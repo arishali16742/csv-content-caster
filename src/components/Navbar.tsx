@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Menu, X, User, LogOut, ShoppingCart, Activity } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAdmin } from '@/hooks/useAdmin';
+import { useCart } from '@/hooks/useCart';
 import { Button } from '@/components/ui/button';
 import LoginModal from './LoginModal';
 
@@ -15,6 +16,7 @@ const Navbar = () => {
   const location = useLocation();
   const { user, signOut, isAuthenticated } = useAuth();
   const { isAdmin } = useAdmin();
+  const { cartCount } = useCart();
   const isHomePage = location.pathname === '/';
 
   useEffect(() => {
@@ -46,11 +48,12 @@ const Navbar = () => {
   };
 
   const handleNavigation = (path: string) => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setIsMenuOpen(false);
+    navigate(path);
+    // Scroll to top immediately after navigation
     setTimeout(() => {
-      navigate(path);
-      setIsMenuOpen(false);
-    }, 100);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 0);
   };
 
   const handleSignOut = async () => {
@@ -145,8 +148,13 @@ const Navbar = () => {
               </button>
               
               {isAuthenticated && (
-                <button onClick={() => handleNavigation('/cart')} className={getLinkClasses()}>
+                <button onClick={() => handleNavigation('/cart')} className={`${getLinkClasses()} relative`}>
                   <ShoppingCart className="h-5 w-5" />
+                  {cartCount > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+                      {cartCount > 99 ? '99+' : cartCount}
+                    </span>
+                  )}
                 </button>
               )}
               
@@ -189,9 +197,14 @@ const Navbar = () => {
               {isAuthenticated && (
                 <button 
                   onClick={() => handleNavigation('/cart')} 
-                  className="mr-4 text-gray-700 hover:text-travel-primary"
+                  className="mr-4 text-gray-700 hover:text-travel-primary relative"
                 >
                   <ShoppingCart className="h-6 w-6" />
+                  {cartCount > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+                      {cartCount > 99 ? '99+' : cartCount}
+                    </span>
+                  )}
                 </button>
               )}
               <button

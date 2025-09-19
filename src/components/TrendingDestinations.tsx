@@ -123,7 +123,7 @@ const TrendingDestinations = () => {
           {/* Destinations Grid */}
           <div className="overflow-hidden mx-2 md:mx-0">
             <div 
-              className={`grid ${isMobile ? 'grid-cols-2' : 'grid-cols-3'} gap-3 md:gap-6 transition-transform duration-500 ease-in-out`}
+              className={`grid ${isMobile ? 'grid-cols-2 gap-2' : 'grid-cols-3 gap-3 md:gap-6'} transition-transform duration-500 ease-in-out`}
             >
               {getVisibleDestinations().map((destination) => (
                 <div 

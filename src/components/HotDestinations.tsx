@@ -128,7 +128,7 @@ const HotDestinations = () => {
           {/* Destinations Container */}
           <div 
             ref={containerRef}
-            className={`${isMobile ? 'flex overflow-x-auto snap-x snap-mandatory scrollbar-hide' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3'} gap-3 md:gap-4 px-2 md:px-0`}
+            className={`${isMobile ? 'flex overflow-x-auto snap-x snap-mandatory scrollbar-hide' : 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3'} gap-3 md:gap-4 px-2 md:px-0`}
           >
             {destinations.map((destination) => (
               <div 
