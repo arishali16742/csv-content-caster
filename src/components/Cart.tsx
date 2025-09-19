@@ -8,10 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
-import { Trash2, Plus, Minus, ShoppingCart, Calendar, Eye, X, Users, Plane, Clock, FileText, Copy, Tag, BookCheck } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingCart, Calendar, Eye, X, Users, Plane, Clock, FileText, Copy, Tag, BookCheck, ArrowLeft, MessageSquare } from 'lucide-react';
 import { useToast } from './ui/use-toast';
 import { format } from 'date-fns';
 import BookingPopup from './BookingPopup';
+import { Textarea } from './ui/textarea';
 
 interface CartItem {
   id: string;
@@ -28,6 +29,7 @@ interface CartItem {
   price_before_admin_discount?: number | null;
   booking_type?: string;
   applied_coupon_details?: string | null;
+  comments?: string | null;
   packages?: {
     id: string;
     title: string;
@@ -52,6 +54,8 @@ const Cart = () => {
   const [selectedPackage, setSelectedPackage] = useState<CartItem | null>(null);
   const [showPackageDetail, setShowPackageDetail] = useState(false);
   const [isBookingPopupOpen, setIsBookingPopupOpen] = useState(false);
+  const [comments, setComments] = useState('');
+  const [updatingComments, setUpdatingComments] = useState(false);
 
   const loadCartItems = async () => {
     if (!user) {
@@ -113,6 +117,45 @@ const Cart = () => {
       console.error('Error in loadCartItems:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Load comments from first cart item
+  useEffect(() => {
+    if (cartItems.length > 0) {
+      setComments(cartItems[0].comments || '');
+    }
+  }, [cartItems]);
+
+  const updateComments = async () => {
+    if (!user || cartItems.length === 0) return;
+
+    setUpdatingComments(true);
+    try {
+      // Update all cart items with the same comments
+      const { error } = await supabase
+        .from('cart')
+        .update({ comments: comments })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setCartItems(items => items.map(item => ({ ...item, comments })));
+
+      toast({
+        title: "Comments Updated",
+        description: "Your comments have been saved successfully.",
+      });
+    } catch (error) {
+      console.error('Error updating comments:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update comments",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdatingComments(false);
     }
   };
 
@@ -272,6 +315,19 @@ const Cart = () => {
       <Navbar />
       <main className="flex-grow pt-20">
         <div className="max-w-7xl mx-auto px-4 py-4 md:py-8">
+          {/* Back Navigation */}
+          <div className="flex items-center gap-4 mb-6">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Button>
+          </div>
+
           <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Your Cart</h1>
 
           {cartItems.length === 0 ? (
@@ -458,6 +514,44 @@ const Cart = () => {
                         Book this trip
                       </Button>
                     </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Comments Section */}
+              <div className="lg:col-span-2 mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <MessageSquare className="h-5 w-5" />
+                      Special Requests & Comments
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <Textarea
+                      placeholder="Add any special requests, dietary requirements, accessibility needs, or other comments for your trip..."
+                      value={comments}
+                      onChange={(e) => setComments(e.target.value)}
+                      rows={4}
+                      className="resize-none"
+                    />
+                    <Button 
+                      onClick={updateComments}
+                      disabled={updatingComments}
+                      size="sm"
+                    >
+                      {updatingComments ? (
+                        <>
+                          <Clock className="h-4 w-4 mr-2 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <MessageSquare className="h-4 w-4 mr-2" />
+                          Save Comments
+                        </>
+                      )}
+                    </Button>
                   </CardContent>
                 </Card>
               </div>

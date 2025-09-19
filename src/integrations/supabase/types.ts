@@ -151,6 +151,7 @@ export type Database = {
           applied_coupon_details: string | null
           best_time_to_connect: string | null
           booking_type: string
+          comments: string | null
           created_at: string
           days: number
           id: string
@@ -170,6 +171,7 @@ export type Database = {
           applied_coupon_details?: string | null
           best_time_to_connect?: string | null
           booking_type?: string
+          comments?: string | null
           created_at?: string
           days: number
           id?: string
@@ -189,6 +191,7 @@ export type Database = {
           applied_coupon_details?: string | null
           best_time_to_connect?: string | null
           booking_type?: string
+          comments?: string | null
           created_at?: string
           days?: number
           id?: string
