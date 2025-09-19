@@ -447,11 +447,11 @@ const BookingPopup = ({
                     <span className="text-sm text-gray-500">Total Price</span>
                     {appliedCoupon ? (
                         <div className="text-right">
-                            <span className="text-sm text-gray-500 line-through">₹{totalPrice.toLocaleString()}</span>
-                            <span className="text-lg font-bold text-travel-primary ml-2">₹{finalPrice.toLocaleString()}</span>
+                            <span className="text-sm text-gray-500 line-through"> ₹{totalPrice.toLocaleString("en-IN")}</span>
+                            <span className="text-lg font-bold text-travel-primary ml-2">₹{finalPrice.toLocaleString("en-IN")}</span>
                         </div>
                     ) : (
-                        <span className="text-lg font-bold">₹{totalPrice.toLocaleString()}</span>
+                        <span className="text-lg font-bold"> ₹{totalPrice.toLocaleString("en-IN")}</span>
                     )}
                   </div>
                 </div>

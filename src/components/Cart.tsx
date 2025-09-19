@@ -220,6 +220,12 @@ const Cart = () => {
     return cartItems.reduce((total, item) => total + item.total_price + (item.visa_cost || 0), 0);
   };
 
+  const formatIndianCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
   const viewPackageDetails = (item: CartItem) => {
     console.log('Viewing package details for:', item);
     setSelectedPackage(item);
@@ -371,28 +377,14 @@ const Cart = () => {
                             
                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                               <div className="flex items-center gap-3">
-                                <span className="text-sm font-medium">Days:</span>
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => updateCartItem(item.id, Math.max(1, item.days - 1))}
-                                    disabled={item.days <= 1}
-                                  >
-                                    <Minus className="h-3 w-3" />
-                                  </Button>
-                                  <span className="font-semibold w-8 text-center">
-                                    {item.days}
-                                  </span>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => updateCartItem(item.id, item.days + 1)}
-                                  >
-                                    <Plus className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </div>
+  <span className="text-sm font-medium">Stay Duration:</span>
+  <div className="flex items-center gap-2">
+    <span className="font-semibold w-16 text-center">
+      {item.days} {item.days === 1 ? "Day" : "Days"}
+    </span>
+  </div>
+</div>
+
                               
                               <div className="flex items-center justify-between sm:justify-end gap-3">
                                 {item.price_before_admin_discount && item.price_before_admin_discount > 0 ? (
@@ -402,15 +394,15 @@ const Cart = () => {
                                         <p className="text-xs text-green-600 font-semibold">Special Discount Applied!</p>
                                     </div>
                                     <span className="text-sm text-gray-500 line-through">
-                                      ₹{(item.price_before_admin_discount + (item.visa_cost || 0)).toLocaleString()}
+                                      ₹{formatIndianCurrency(item.price_before_admin_discount + (item.visa_cost || 0))}
                                     </span>
                                     <span className="text-lg md:text-xl font-bold text-travel-primary ml-2">
-                                      ₹{(item.total_price + (item.visa_cost || 0)).toLocaleString()}
+                                     ₹{formatIndianCurrency(item.total_price + (item.visa_cost || 0))}
                                     </span>
                                   </div>
                                 ) : (
                                   <span className="text-lg md:text-xl font-bold text-travel-primary">
-                                    ₹{(item.total_price + (item.visa_cost || 0)).toLocaleString()}
+                                    ₹{formatIndianCurrency(item.total_price + (item.visa_cost || 0))}
                                   </span>
                                 )}
                                 <Button
@@ -453,7 +445,7 @@ const Cart = () => {
                     <div className="flex justify-between text-lg font-bold">
                       <span>Total Amount:</span>
                       <span className="text-travel-primary">
-                        ₹{getTotalPrice().toLocaleString()}
+                        ₹{formatIndianCurrency(getTotalPrice())}
                       </span>
                     </div>
                     
@@ -551,7 +543,7 @@ const Cart = () => {
     <p className="text-sm text-gray-600">
       Total Price ({selectedPackage.days} days, {selectedPackage.members || 1} members)
     </p>
-
+                  
     {selectedPackage.price_before_admin_discount && selectedPackage.price_before_admin_discount > 0 ? (
       <div className="space-y-1">
         <div className="flex items-center gap-1.5">
@@ -569,7 +561,7 @@ const Cart = () => {
       </div>
     ) : (
       <p className="text-2xl font-bold text-travel-primary">
-        ₹{(selectedPackage.total_price + (selectedPackage.visa_cost || 0)).toLocaleString()}
+        ₹{formatIndianCurrency(selectedPackage.total_price + (selectedPackage.visa_cost || 0)).toLocaleString()}
       </p>
     )}
   </div>
