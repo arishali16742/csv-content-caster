@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
-import { Calendar, Clock, FileText, Loader2, Plane, User, Users, Phone, MessageSquare, ShoppingCart, BookCheck } from 'lucide-react';
+import { Calendar, Clock, FileText, Loader2, Plane, User, Users, Phone, MessageSquare, ShoppingCart, BookCheck, Upload, Send } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface FetchedCartItem {
@@ -27,6 +28,9 @@ interface FetchedCartItem {
   best_time_to_connect?: string | null;
   booking_type?: string;
   applied_coupon_details?: string | null;
+  comments?: string | null;
+  admin_response?: string | null;
+  admin_response_file_url?: string | null;
   packages?: {
     title: string;
     country: string;
@@ -70,7 +74,11 @@ const CartReviewManagement = () => {
     const [fetchingAll, setFetchingAll] = useState(true);
     const [discountPercent, setDiscountPercent] = useState<number | ''>('');
     const [updating, setUpdating] = useState(false);
-    const [bookingTypeFilter, setBookingTypeFilter] = useState('all'); // 'all', 'booked', 'cart'
+    const [bookingTypeFilter, setBookingTypeFilter] = useState('all');
+    const [adminResponse, setAdminResponse] = useState('');
+    const [uploadingFile, setUploadingFile] = useState(false);
+    const [sendingResponse, setSendingResponse] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -195,6 +203,116 @@ const CartReviewManagement = () => {
         } else {
             // Fallback to search if not found in the list
             handleSearch(id);
+        }
+    };
+
+    const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        // Check file type (PDFs only)
+        if (file.type !== 'application/pdf') {
+            toast({
+                title: 'Invalid File Type',
+                description: 'Only PDF files are allowed.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        // Check file size (max 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+            toast({
+                title: 'File Too Large',
+                description: 'File size must be less than 10MB.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        setUploadingFile(true);
+        try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${Date.now()}.${fileExt}`;
+            const filePath = `admin-responses/${fileName}`;
+
+            const { error: uploadError, data } = await supabase.storage
+                .from('package-images')
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data: urlData } = supabase.storage
+                .from('package-images')
+                .getPublicUrl(filePath);
+
+            // Send response with file
+            await handleSendAdminResponse(urlData.publicUrl);
+
+        } catch (error: any) {
+            toast({
+                title: 'Upload Failed',
+                description: error.message,
+                variant: 'destructive',
+            });
+        } finally {
+            setUploadingFile(false);
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+        }
+    };
+
+    const handleSendAdminResponse = async (fileUrl?: string) => {
+        if (!cartItem || (!adminResponse.trim() && !fileUrl)) {
+            toast({
+                title: 'Invalid Response',
+                description: 'Please enter a message or attach a file.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        setSendingResponse(true);
+        try {
+            const { error } = await supabase
+                .from('cart')
+                .update({
+                    admin_response: adminResponse.trim() || null,
+                    admin_response_file_url: fileUrl || null,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', cartItem.id);
+
+            if (error) throw error;
+
+            // Update local state
+            const updatedCartItem = {
+                ...cartItem,
+                admin_response: adminResponse.trim() || null,
+                admin_response_file_url: fileUrl || null,
+            };
+            setCartItem(updatedCartItem);
+
+            // Update the booking in the list
+            setAllBookings(bookings =>
+                bookings.map(b => b.id === cartItem.id ? updatedCartItem : b)
+            );
+
+            setAdminResponse('');
+            toast({
+                title: 'Response Sent',
+                description: 'Your response has been sent to the customer.',
+            });
+
+        } catch (error: any) {
+            toast({
+                title: 'Send Failed',
+                description: error.message,
+                variant: 'destructive',
+            });
+        } finally {
+            setSendingResponse(false);
         }
     };
 
@@ -356,6 +474,45 @@ const CartReviewManagement = () => {
                                             <p className="font-bold text-base">Total: ₹{(cartItem.total_price + (cartItem.visa_cost || 0)).toLocaleString()}</p>
                                         </div>
                                     </div>
+                                    
+                                    {/* Customer Comments & Admin Response Section */}
+                                    {(cartItem.comments || cartItem.admin_response) && (
+                                        <div>
+                                            <h4 className="font-semibold text-md mb-3">Communication History</h4>
+                                            <div className="space-y-3 max-h-40 overflow-y-auto border rounded-lg p-3 bg-gray-50">
+                                                {/* Customer Message */}
+                                                {cartItem.comments && (
+                                                    <div className="flex justify-end">
+                                                        <div className="bg-blue-500 text-white p-2 rounded-lg max-w-[80%] text-sm">
+                                                            <p>{cartItem.comments}</p>
+                                                            <p className="text-xs opacity-75 mt-1">Customer</p>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                
+                                                {/* Admin Response */}
+                                                {cartItem.admin_response && (
+                                                    <div className="flex justify-start">
+                                                        <div className="bg-white border p-2 rounded-lg max-w-[80%] text-sm">
+                                                            <p>{cartItem.admin_response}</p>
+                                                            {cartItem.admin_response_file_url && (
+                                                                <a 
+                                                                    href={cartItem.admin_response_file_url} 
+                                                                    target="_blank" 
+                                                                    rel="noopener noreferrer"
+                                                                    className="text-xs text-blue-600 hover:underline mt-1 block"
+                                                                >
+                                                                    📎 View Attachment
+                                                                </a>
+                                                            )}
+                                                            <p className="text-xs text-gray-500 mt-1">Admin Response</p>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                    
                                     <div>
                                         <h4 className="font-semibold text-md mb-2">Admin Discount</h4>
                                         <div className="flex items-center space-x-2 max-w-sm">
@@ -372,6 +529,69 @@ const CartReviewManagement = () => {
                                                 {updating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                                 Apply Discount
                                             </Button>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Customer Comments Display and Admin Response */}
+                                    <div>
+                                        <h4 className="font-semibold text-md mb-2">Customer Communication</h4>
+                                        
+                                        {/* Show customer comments if any */}
+                                        {cartItem.comments ? (
+                                            <div className="mb-3 p-3 bg-blue-50 border-l-4 border-blue-400 rounded">
+                                                <p className="text-sm font-medium text-blue-800 mb-1">Customer Message:</p>
+                                                <p className="text-sm text-blue-700">{cartItem.comments}</p>
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-gray-500 mb-3">No customer messages yet.</p>
+                                        )}
+                                        
+                                        {/* Admin Response Form */}
+                                        <div className="space-y-3">
+                                            <Textarea
+                                                placeholder="Type your response to the customer..."
+                                                value={adminResponse}
+                                                onChange={(e) => setAdminResponse(e.target.value)}
+                                                rows={3}
+                                                className="resize-none"
+                                            />
+                                            
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    onClick={() => handleSendAdminResponse()}
+                                                    disabled={sendingResponse || (!adminResponse.trim())}
+                                                    size="sm"
+                                                >
+                                                    {sendingResponse ? (
+                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                    ) : (
+                                                        <Send className="mr-2 h-4 w-4" />
+                                                    )}
+                                                    Send Response
+                                                </Button>
+                                                
+                                                <Button
+                                                    onClick={() => fileInputRef.current?.click()}
+                                                    disabled={uploadingFile}
+                                                    size="sm"
+                                                    variant="outline"
+                                                >
+                                                    {uploadingFile ? (
+                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                    ) : (
+                                                        <Upload className="mr-2 h-4 w-4" />
+                                                    )}
+                                                    Upload PDF
+                                                </Button>
+                                                
+                                                <input
+                                                    type="file"
+                                                    ref={fileInputRef}
+                                                    onChange={handleFileUpload}
+                                                    accept=".pdf"
+                                                    className="hidden"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 </CardContent>

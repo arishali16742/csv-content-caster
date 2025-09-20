@@ -1733,9 +1733,12 @@ export type Database = {
       get_all_bookings_with_details: {
         Args: Record<PropertyKey, never>
         Returns: {
+          admin_response: string
+          admin_response_file_url: string
           applied_coupon_details: string
           best_time_to_connect: string
           booking_type: string
+          comments: string
           created_at: string
           days: number
           id: string

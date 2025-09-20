@@ -30,6 +30,8 @@ interface CartItem {
   booking_type?: string;
   applied_coupon_details?: string | null;
   comments?: string | null;
+  admin_response?: string | null;
+  admin_response_file_url?: string | null;
   packages?: {
     id: string;
     title: string;
@@ -55,7 +57,7 @@ const Cart = () => {
   const [showPackageDetail, setShowPackageDetail] = useState(false);
   const [isBookingPopupOpen, setIsBookingPopupOpen] = useState(false);
   const [comments, setComments] = useState('');
-  const [updatingComments, setUpdatingComments] = useState(false);
+  const [savingComments, setSavingComments] = useState(false);
 
   const loadCartItems = async () => {
     if (!user) {
@@ -120,42 +122,43 @@ const Cart = () => {
     }
   };
 
-  // Load comments from first cart item
+  // Load initial comments
   useEffect(() => {
     if (cartItems.length > 0) {
-      setComments(cartItems[0].comments || '');
+      setComments('');
     }
   }, [cartItems]);
 
-  const updateComments = async () => {
-    if (!user || cartItems.length === 0) return;
+  const handleSaveComments = async () => {
+    if (!user || cartItems.length === 0 || !comments.trim()) return;
 
-    setUpdatingComments(true);
+    setSavingComments(true);
     try {
       // Update all cart items with the same comments
       const { error } = await supabase
         .from('cart')
-        .update({ comments: comments })
+        .update({ comments: comments.trim() })
         .eq('user_id', user.id);
 
       if (error) throw error;
 
       // Update local state
-      setCartItems(items => items.map(item => ({ ...item, comments })));
+      setCartItems(items => items.map(item => ({ ...item, comments: comments.trim() })));
+      setComments(''); // Clear input after successful save
 
       toast({
-        title: "Comments Updated",
-        description: "Your comments have been saved successfully.",
+        title: "Message Sent",
+        description: "Your message has been sent to our support team.",
       });
     } catch (error) {
-      console.error('Error updating comments:', error);
+      console.error('Error saving comments:', error);
       toast({
         title: "Error",
-        description: "Failed to update comments",
+        description: "Failed to send message",
         variant: "destructive",
       });
     } finally {
-      setUpdatingComments(false);
+      setSavingComments(false);
     }
   };
 
@@ -524,34 +527,87 @@ const Cart = () => {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <MessageSquare className="h-5 w-5" />
-                      Special Requests & Comments
+                      Communication Center
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <Textarea
-                      placeholder="Add any special requests, dietary requirements, accessibility needs, or other comments for your trip..."
-                      value={comments}
-                      onChange={(e) => setComments(e.target.value)}
-                      rows={4}
-                      className="resize-none"
-                    />
-                    <Button 
-                      onClick={updateComments}
-                      disabled={updatingComments}
-                      size="sm"
-                    >
-                      {updatingComments ? (
+                    {/* Chat Messages */}
+                    <div className="max-h-60 overflow-y-auto space-y-3 border rounded-lg p-4 bg-gray-50">
+                      {cartItems.length > 0 ? (
                         <>
-                          <Clock className="h-4 w-4 mr-2 animate-spin" />
-                          Saving...
+                          {/* Customer Messages */}
+                          {cartItems.some(item => item.comments) && (
+                            <div className="flex justify-end">
+                              <div className="bg-primary text-primary-foreground p-3 rounded-lg max-w-[80%] shadow-sm">
+                                <p className="text-sm">{cartItems.find(item => item.comments)?.comments}</p>
+                                <p className="text-xs opacity-75 mt-1">You</p>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Admin Response */}
+                          {cartItems.some(item => item.admin_response) && (
+                            <div className="flex justify-start">
+                              <div className="bg-white border p-3 rounded-lg max-w-[80%] shadow-sm">
+                                <p className="text-sm">{cartItems.find(item => item.admin_response)?.admin_response}</p>
+                                {cartItems.find(item => item.admin_response_file_url)?.admin_response_file_url && (
+                                  <a 
+                                    href={cartItems.find(item => item.admin_response_file_url)?.admin_response_file_url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-primary hover:underline mt-2 block flex items-center gap-1"
+                                  >
+                                    📎 View Attachment
+                                  </a>
+                                )}
+                                <p className="text-xs text-muted-foreground mt-1">Support Team</p>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Empty state */}
+                          {!cartItems.some(item => item.comments || item.admin_response) && (
+                            <div className="text-center text-gray-500 py-8">
+                              <MessageSquare className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                              <p className="text-sm">No messages yet. Start a conversation with our team!</p>
+                            </div>
+                          )}
                         </>
                       ) : (
-                        <>
-                          <MessageSquare className="h-4 w-4 mr-2" />
-                          Save Comments
-                        </>
+                        <div className="text-center text-gray-500 py-8">
+                          <p className="text-sm">Add items to your cart to start messaging</p>
+                        </div>
                       )}
-                    </Button>
+                    </div>
+                    
+                    {/* Message Input */}
+                    <div className="space-y-3">
+                      <Textarea
+                        placeholder="Type your message here... Ask questions, make special requests, or share any concerns about your trip."
+                        value={comments}
+                        onChange={(e) => setComments(e.target.value)}
+                        rows={3}
+                        className="resize-none"
+                      />
+                      <Button 
+                        onClick={handleSaveComments}
+                        disabled={savingComments || !comments.trim() || cartItems.length === 0}
+                        size="sm"
+                        className="w-full"
+                      >
+                        {savingComments ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            Sending Message...
+                          </>
+                        ) : (
+                          <>
+                            <MessageSquare className="h-4 w-4 mr-2" />
+                            Send Message
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               </div>
