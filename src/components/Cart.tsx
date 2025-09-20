@@ -60,6 +60,7 @@ const Cart = () => {
   const [comments, setComments] = useState('');
   const [savingComments, setSavingComments] = useState(false);
   const [selectedPackageForComments, setSelectedPackageForComments] = useState<string>('');
+  const [conversations, setConversations] = useState<Record<string, any[]>>({});
 
   const loadCartItems = async () => {
     if (!user) {
@@ -124,52 +125,110 @@ const Cart = () => {
     }
   };
 
-  // Load initial comments and set default selected package
+  // Load conversations for all cart items
+  const loadConversations = async () => {
+    if (!user || cartItems.length === 0) return;
+
+    try {
+      const cartItemIds = cartItems.map(item => item.id);
+      const { data, error } = await supabase
+        .from('conversations')
+        .select('*')
+        .in('cart_item_id', cartItemIds)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Error loading conversations:', error);
+        return;
+      }
+
+      // Group conversations by cart item id
+      const groupedConversations: Record<string, any[]> = {};
+      data?.forEach(conversation => {
+        if (!groupedConversations[conversation.cart_item_id]) {
+          groupedConversations[conversation.cart_item_id] = [];
+        }
+        groupedConversations[conversation.cart_item_id].push(conversation);
+      });
+
+      setConversations(groupedConversations);
+    } catch (error) {
+      console.error('Error in loadConversations:', error);
+    }
+  };
+
+  // Load initial state and set default selected package
   useEffect(() => {
     if (cartItems.length > 0) {
       setComments('');
       if (!selectedPackageForComments) {
         setSelectedPackageForComments(cartItems[0].id);
       }
+      loadConversations();
     }
   }, [cartItems]);
 
-  // Load comments for selected package
+  // Set up real-time subscription for conversations
   useEffect(() => {
-    if (selectedPackageForComments) {
-      const selectedItem = cartItems.find(item => item.id === selectedPackageForComments);
-      setComments(selectedItem?.comments || '');
-    }
-  }, [selectedPackageForComments, cartItems]);
+    if (!user || cartItems.length === 0) return;
+
+    const cartItemIds = cartItems.map(item => item.id);
+    
+    const channel = supabase
+      .channel('conversations_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'conversations',
+        },
+        (payload: any) => {
+          if (cartItemIds.includes(payload.new?.cart_item_id || payload.old?.cart_item_id)) {
+            loadConversations();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, cartItems]);
 
   const handleSaveComments = async () => {
     if (!user || cartItems.length === 0 || !comments.trim() || !selectedPackageForComments) return;
 
     setSavingComments(true);
     try {
-      // Update only the specific cart item with comments
+      // Get user name from metadata or email
+      const firstName = user.user_metadata?.first_name || '';
+      const lastName = user.user_metadata?.last_name || '';
+      const senderName = firstName && lastName ? `${firstName} ${lastName}` : user.email;
+
+      // Insert new conversation message
       const { error } = await supabase
-        .from('cart')
-        .update({ comments: comments.trim() })
-        .eq('id', selectedPackageForComments)
-        .eq('user_id', user.id);
+        .from('conversations')
+        .insert({
+          cart_item_id: selectedPackageForComments,
+          message: comments.trim(),
+          sender_type: 'customer',
+          sender_name: senderName
+        });
 
       if (error) throw error;
 
-      // Update local state
-      setCartItems(items => items.map(item => 
-        item.id === selectedPackageForComments 
-          ? { ...item, comments: comments.trim() } 
-          : item
-      ));
       setComments(''); // Clear input after successful save
 
       toast({
         title: "Message Sent",
         description: "Your message has been sent to our support team for the selected package.",
       });
+
+      // Refresh conversations to show the new message
+      loadConversations();
     } catch (error) {
-      console.error('Error saving comments:', error);
+      console.error('Error saving message:', error);
       toast({
         title: "Error",
         description: "Failed to send message",
@@ -572,41 +631,47 @@ const Cart = () => {
                     <div className="max-h-60 overflow-y-auto space-y-3 border rounded-lg p-4 bg-gray-50">
                       {cartItems.length > 0 && selectedPackageForComments ? (
                         (() => {
-                          const selectedItem = cartItems.find(item => item.id === selectedPackageForComments);
+                          const packageConversations = conversations[selectedPackageForComments] || [];
                           return (
                             <>
-                              {/* Customer Messages */}
-                              {selectedItem?.comments && (
-                                <div className="flex justify-end">
-                                  <div className="bg-primary text-primary-foreground p-3 rounded-lg max-w-[80%] shadow-sm">
-                                    <p className="text-sm">{selectedItem.comments}</p>
-                                    <p className="text-xs opacity-75 mt-1">You</p>
+                              {/* Conversation Messages */}
+                              {packageConversations.length > 0 ? (
+                                packageConversations.map((message) => (
+                                  <div 
+                                    key={message.id} 
+                                    className={`flex ${message.sender_type === 'customer' ? 'justify-end' : 'justify-start'}`}
+                                  >
+                                    <div 
+                                      className={`p-3 rounded-lg max-w-[80%] shadow-sm ${
+                                        message.sender_type === 'customer' 
+                                          ? 'bg-primary text-primary-foreground' 
+                                          : 'bg-white border'
+                                      }`}
+                                    >
+                                      <p className="text-sm">{message.message}</p>
+                                      {message.attachment_url && (
+                                        <a 
+                                          href={message.attachment_url} 
+                                          target="_blank" 
+                                          rel="noopener noreferrer"
+                                          className="text-xs hover:underline mt-2 block flex items-center gap-1"
+                                        >
+                                          📎 View Attachment
+                                        </a>
+                                      )}
+                                      <div className="flex items-center justify-between mt-1">
+                                        <p className={`text-xs ${message.sender_type === 'customer' ? 'opacity-75' : 'text-muted-foreground'}`}>
+                                          {message.sender_name || (message.sender_type === 'customer' ? 'You' : 'Support Team')}
+                                        </p>
+                                        <p className={`text-xs ${message.sender_type === 'customer' ? 'opacity-75' : 'text-muted-foreground'}`}>
+                                          {format(new Date(message.created_at), 'MMM dd, HH:mm')}
+                                        </p>
+                                      </div>
+                                    </div>
                                   </div>
-                                </div>
-                              )}
-                              
-                              {/* Admin Response */}
-                              {selectedItem?.admin_response && (
-                                <div className="flex justify-start">
-                                  <div className="bg-white border p-3 rounded-lg max-w-[80%] shadow-sm">
-                                    <p className="text-sm">{selectedItem.admin_response}</p>
-                                    {selectedItem.admin_response_file_url && (
-                                      <a 
-                                        href={selectedItem.admin_response_file_url} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="text-xs text-primary hover:underline mt-2 block flex items-center gap-1"
-                                      >
-                                        📎 View Attachment
-                                      </a>
-                                    )}
-                                    <p className="text-xs text-muted-foreground mt-1">Support Team</p>
-                                  </div>
-                                </div>
-                              )}
-                              
-                              {/* Empty state */}
-                              {!selectedItem?.comments && !selectedItem?.admin_response && (
+                                ))
+                              ) : (
+                                /* Empty state */
                                 <div className="text-center text-gray-500 py-8">
                                   <MessageSquare className="h-12 w-12 mx-auto mb-2 opacity-50" />
                                   <p className="text-sm">No messages yet for this package. Start a conversation with our team!</p>

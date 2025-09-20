@@ -223,6 +223,39 @@ export type Database = {
           },
         ]
       }
+      conversations: {
+        Row: {
+          attachment_url: string | null
+          cart_item_id: string
+          created_at: string
+          id: string
+          message: string
+          sender_name: string | null
+          sender_type: string
+          updated_at: string
+        }
+        Insert: {
+          attachment_url?: string | null
+          cart_item_id: string
+          created_at?: string
+          id?: string
+          message: string
+          sender_name?: string | null
+          sender_type: string
+          updated_at?: string
+        }
+        Update: {
+          attachment_url?: string | null
+          cart_item_id?: string
+          created_at?: string
+          id?: string
+          message?: string
+          sender_name?: string | null
+          sender_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       counter_backgrounds: {
         Row: {
           alt_text: string | null

@@ -78,6 +78,7 @@ const CartReviewManagement = () => {
     const [adminResponse, setAdminResponse] = useState('');
     const [uploadingFile, setUploadingFile] = useState(false);
     const [sendingResponse, setSendingResponse] = useState(false);
+    const [conversations, setConversations] = useState<any[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
 
@@ -131,6 +132,25 @@ const CartReviewManagement = () => {
         fetchAllBookings();
     }, [toast]);
 
+    const loadConversations = async (cartItemId: string) => {
+        try {
+            const { data, error } = await supabase
+                .from('conversations')
+                .select('*')
+                .eq('cart_item_id', cartItemId)
+                .order('created_at', { ascending: true });
+
+            if (error) {
+                console.error('Error loading conversations:', error);
+                return;
+            }
+
+            setConversations(data || []);
+        } catch (error) {
+            console.error('Error in loadConversations:', error);
+        }
+    };
+
     const handleSearch = async (id?: string) => {
         const searchId = id || bookingId;
         if (!searchId.trim()) {
@@ -181,6 +201,9 @@ const CartReviewManagement = () => {
             }
 
             setCartItem({ ...cartData, profile: profileData });
+            
+            // Load conversations for this cart item
+            await loadConversations(cartData.id);
 
         } catch (error: any) {
             console.error('Search failed:', error);
@@ -194,12 +217,13 @@ const CartReviewManagement = () => {
         }
     };
     
-    const handleSelectBooking = (id: string) => {
+    const handleSelectBooking = async (id: string) => {
         setBookingId(id);
         const booking = allBookings.find(b => b.id === id);
         if (booking) {
             setCartItem(booking);
             setDiscountPercent('');
+            await loadConversations(booking.id);
         } else {
             // Fallback to search if not found in the list
             handleSearch(id);
@@ -275,35 +299,27 @@ const CartReviewManagement = () => {
 
         setSendingResponse(true);
         try {
+            // Insert new conversation message
             const { error } = await supabase
-                .from('cart')
-                .update({
-                    admin_response: adminResponse.trim() || null,
-                    admin_response_file_url: fileUrl || null,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', cartItem.id);
+                .from('conversations')
+                .insert({
+                    cart_item_id: cartItem.id,
+                    message: adminResponse.trim(),
+                    sender_type: 'admin',
+                    sender_name: 'Support Team',
+                    attachment_url: fileUrl || null
+                });
 
             if (error) throw error;
-
-            // Update local state
-            const updatedCartItem = {
-                ...cartItem,
-                admin_response: adminResponse.trim() || null,
-                admin_response_file_url: fileUrl || null,
-            };
-            setCartItem(updatedCartItem);
-
-            // Update the booking in the list
-            setAllBookings(bookings =>
-                bookings.map(b => b.id === cartItem.id ? updatedCartItem : b)
-            );
 
             setAdminResponse('');
             toast({
                 title: 'Response Sent',
                 description: 'Your response has been sent to the customer.',
             });
+
+            // Reload conversations to show the new message
+            await loadConversations(cartItem.id);
 
         } catch (error: any) {
             toast({
@@ -475,43 +491,53 @@ const CartReviewManagement = () => {
                                         </div>
                                     </div>
                                     
-                                    {/* Customer Comments & Admin Response Section */}
-                                    {(cartItem.comments || cartItem.admin_response) && (
-                                        <div>
-                                            <h4 className="font-semibold text-md mb-3">Communication History</h4>
-                                            <div className="space-y-3 max-h-40 overflow-y-auto border rounded-lg p-3 bg-gray-50">
-                                                {/* Customer Message */}
-                                                {cartItem.comments && (
-                                                    <div className="flex justify-end">
-                                                        <div className="bg-blue-500 text-white p-2 rounded-lg max-w-[80%] text-sm">
-                                                            <p>{cartItem.comments}</p>
-                                                            <p className="text-xs opacity-75 mt-1">Customer</p>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                                
-                                                {/* Admin Response */}
-                                                {cartItem.admin_response && (
-                                                    <div className="flex justify-start">
-                                                        <div className="bg-white border p-2 rounded-lg max-w-[80%] text-sm">
-                                                            <p>{cartItem.admin_response}</p>
-                                                            {cartItem.admin_response_file_url && (
-                                                                <a 
-                                                                    href={cartItem.admin_response_file_url} 
-                                                                    target="_blank" 
-                                                                    rel="noopener noreferrer"
-                                                                    className="text-xs text-blue-600 hover:underline mt-1 block"
-                                                                >
-                                                                    📎 View Attachment
-                                                                </a>
-                                                            )}
-                                                            <p className="text-xs text-gray-500 mt-1">Admin Response</p>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
+                                     {/* Communication History */}
+                                     <div>
+                                         <h4 className="font-semibold text-md mb-3">Communication History</h4>
+                                         <div className="space-y-3 max-h-60 overflow-y-auto border rounded-lg p-3 bg-gray-50">
+                                             {conversations.length > 0 ? (
+                                                 conversations.map((message) => (
+                                                     <div 
+                                                         key={message.id}
+                                                         className={`flex ${message.sender_type === 'customer' ? 'justify-end' : 'justify-start'}`}
+                                                     >
+                                                         <div 
+                                                             className={`p-2 rounded-lg max-w-[80%] text-sm ${
+                                                                 message.sender_type === 'customer' 
+                                                                     ? 'bg-blue-500 text-white' 
+                                                                     : 'bg-white border'
+                                                             }`}
+                                                         >
+                                                             <p>{message.message}</p>
+                                                             {message.attachment_url && (
+                                                                 <a 
+                                                                     href={message.attachment_url} 
+                                                                     target="_blank" 
+                                                                     rel="noopener noreferrer"
+                                                                     className="text-xs hover:underline mt-1 block"
+                                                                 >
+                                                                     📎 View Attachment
+                                                                 </a>
+                                                             )}
+                                                             <div className="flex items-center justify-between mt-1">
+                                                                 <p className={`text-xs ${message.sender_type === 'customer' ? 'opacity-75' : 'text-gray-500'}`}>
+                                                                     {message.sender_name || (message.sender_type === 'customer' ? 'Customer' : 'Support Team')}
+                                                                 </p>
+                                                                 <p className={`text-xs ${message.sender_type === 'customer' ? 'opacity-75' : 'text-gray-500'}`}>
+                                                                     {format(new Date(message.created_at), 'MMM dd, HH:mm')}
+                                                                 </p>
+                                                             </div>
+                                                         </div>
+                                                     </div>
+                                                 ))
+                                             ) : (
+                                                 <div className="text-center text-gray-500 py-4">
+                                                     <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                                     <p className="text-sm">No conversation yet.</p>
+                                                 </div>
+                                             )}
+                                         </div>
+                                     </div>
                                     
                                     <div>
                                         <h4 className="font-semibold text-md mb-2">Admin Discount</h4>
@@ -532,68 +558,58 @@ const CartReviewManagement = () => {
                                         </div>
                                     </div>
                                     
-                                    {/* Customer Comments Display and Admin Response */}
-                                    <div>
-                                        <h4 className="font-semibold text-md mb-2">Customer Communication</h4>
-                                        
-                                        {/* Show customer comments if any */}
-                                        {cartItem.comments ? (
-                                            <div className="mb-3 p-3 bg-blue-50 border-l-4 border-blue-400 rounded">
-                                                <p className="text-sm font-medium text-blue-800 mb-1">Customer Message:</p>
-                                                <p className="text-sm text-blue-700">{cartItem.comments}</p>
-                                            </div>
-                                        ) : (
-                                            <p className="text-sm text-gray-500 mb-3">No customer messages yet.</p>
-                                        )}
-                                        
-                                        {/* Admin Response Form */}
-                                        <div className="space-y-3">
-                                            <Textarea
-                                                placeholder="Type your response to the customer..."
-                                                value={adminResponse}
-                                                onChange={(e) => setAdminResponse(e.target.value)}
-                                                rows={3}
-                                                className="resize-none"
-                                            />
-                                            
-                                            <div className="flex items-center gap-2">
-                                                <Button
-                                                    onClick={() => handleSendAdminResponse()}
-                                                    disabled={sendingResponse || (!adminResponse.trim())}
-                                                    size="sm"
-                                                >
-                                                    {sendingResponse ? (
-                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                    ) : (
-                                                        <Send className="mr-2 h-4 w-4" />
-                                                    )}
-                                                    Send Response
-                                                </Button>
-                                                
-                                                <Button
-                                                    onClick={() => fileInputRef.current?.click()}
-                                                    disabled={uploadingFile}
-                                                    size="sm"
-                                                    variant="outline"
-                                                >
-                                                    {uploadingFile ? (
-                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                    ) : (
-                                                        <Upload className="mr-2 h-4 w-4" />
-                                                    )}
-                                                    Upload PDF
-                                                </Button>
-                                                
-                                                <input
-                                                    type="file"
-                                                    ref={fileInputRef}
-                                                    onChange={handleFileUpload}
-                                                    accept=".pdf"
-                                                    className="hidden"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
+                                     {/* Admin Communication */}
+                                     <div>
+                                         <h4 className="font-semibold text-md mb-2">Send Response to Customer</h4>
+                                         
+                                         {/* Admin Response Form */}
+                                         <div className="space-y-3">
+                                             <Textarea
+                                                 placeholder="Type your response to the customer..."
+                                                 value={adminResponse}
+                                                 onChange={(e) => setAdminResponse(e.target.value)}
+                                                 rows={3}
+                                                 className="resize-none"
+                                             />
+                                             
+                                             <div className="flex items-center gap-2">
+                                                 <Button
+                                                     onClick={() => handleSendAdminResponse()}
+                                                     disabled={sendingResponse || (!adminResponse.trim())}
+                                                     size="sm"
+                                                 >
+                                                     {sendingResponse ? (
+                                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                     ) : (
+                                                         <Send className="mr-2 h-4 w-4" />
+                                                     )}
+                                                     Send Response
+                                                 </Button>
+                                                 
+                                                 <Button
+                                                     onClick={() => fileInputRef.current?.click()}
+                                                     disabled={uploadingFile}
+                                                     size="sm"
+                                                     variant="outline"
+                                                 >
+                                                     {uploadingFile ? (
+                                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                     ) : (
+                                                         <Upload className="mr-2 h-4 w-4" />
+                                                     )}
+                                                     Upload PDF
+                                                 </Button>
+                                                 
+                                                 <input
+                                                     type="file"
+                                                     ref={fileInputRef}
+                                                     onChange={handleFileUpload}
+                                                     accept=".pdf"
+                                                     className="hidden"
+                                                 />
+                                             </div>
+                                         </div>
+                                     </div>
                                 </CardContent>
                             </Card>
                         )}

@@ -15,18 +15,36 @@ export const useAdminMessages = () => {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // Get user's cart items
+      const { data: cartItems, error: cartError } = await supabase
         .from('cart')
-        .select('admin_response')
-        .eq('user_id', user.id)
-        .not('admin_response', 'is', null);
+        .select('id')
+        .eq('user_id', user.id);
 
-      if (error) {
-        console.error('Error checking admin messages:', error);
+      if (cartError) {
+        console.error('Error fetching cart items:', cartError);
         return;
       }
 
-      setHasUnreadMessages(data && data.length > 0);
+      if (!cartItems || cartItems.length === 0) {
+        setHasUnreadMessages(false);
+        return;
+      }
+
+      // Check for admin messages in conversations
+      const cartItemIds = cartItems.map(item => item.id);
+      const { data: adminMessages, error: messagesError } = await supabase
+        .from('conversations')
+        .select('id')
+        .in('cart_item_id', cartItemIds)
+        .eq('sender_type', 'admin');
+
+      if (messagesError) {
+        console.error('Error checking admin messages:', messagesError);
+        return;
+      }
+
+      setHasUnreadMessages(adminMessages && adminMessages.length > 0);
     } catch (error) {
       console.error('Error in checkForUnreadMessages:', error);
     } finally {
@@ -38,7 +56,7 @@ export const useAdminMessages = () => {
     checkForUnreadMessages();
   }, [user, isAuthenticated]);
 
-  // Set up real-time subscription to cart changes for admin responses
+  // Set up real-time subscription for new admin messages
   useEffect(() => {
     if (!user) return;
 
@@ -47,15 +65,14 @@ export const useAdminMessages = () => {
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: 'INSERT',
           schema: 'public',
-          table: 'cart',
-          filter: `user_id=eq.${user.id}`,
+          table: 'conversations',
         },
-        (payload) => {
-          // Check if admin_response was updated
-          if (payload.new?.admin_response && payload.new?.admin_response !== payload.old?.admin_response) {
-            setHasUnreadMessages(true);
+        (payload: any) => {
+          // Check if it's an admin message for this user's cart items
+          if (payload.new?.sender_type === 'admin') {
+            checkForUnreadMessages();
           }
         }
       )
