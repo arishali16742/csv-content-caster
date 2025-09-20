@@ -1,0 +1,52 @@
+-- Update the get_all_bookings_with_details function to include admin response fields
+CREATE OR REPLACE FUNCTION public.get_all_bookings_with_details()
+ RETURNS TABLE(id uuid, package_id uuid, days integer, total_price numeric, price_before_admin_discount numeric, members integer, with_flights boolean, selected_date timestamp with time zone, created_at timestamp with time zone, updated_at timestamp with time zone, with_visa boolean, visa_cost numeric, user_id uuid, phone_number text, best_time_to_connect text, package_title text, package_country text, package_destinations text[], profile_email text, profile_first_name text, profile_last_name text, booking_type text, applied_coupon_details text, comments text, admin_response text, admin_response_file_url text)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+BEGIN
+  -- Only admins can run this function
+  IF NOT public.is_user_admin(auth.jwt() ->> 'email') THEN
+    RAISE EXCEPTION 'User is not an admin';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    c.id,
+    c.package_id,
+    c.days,
+    c.total_price,
+    c.price_before_admin_discount,
+    c.members,
+    c.with_flights,
+    c.selected_date,
+    c.created_at,
+    c.updated_at,
+    c.with_visa,
+    c.visa_cost,
+    c.user_id,
+    c.phone_number,
+    c.best_time_to_connect,
+    pkg.title AS package_title,
+    pkg.country AS package_country,
+    pkg.destinations AS package_destinations,
+    COALESCE(p.email, u.email) AS profile_email,
+    p.first_name AS profile_first_name,
+    p.last_name AS profile_last_name,
+    c.booking_type,
+    c.applied_coupon_details,
+    c.comments,
+    c.admin_response,
+    c.admin_response_file_url
+  FROM
+    public.cart c
+  LEFT JOIN
+    public.packages pkg ON c.package_id = pkg.id
+  LEFT JOIN
+    public.profiles p ON c.user_id = p.id
+  LEFT JOIN
+    auth.users u ON c.user_id = u.id
+  ORDER BY
+    c.created_at DESC;
+END;
+$function$;
