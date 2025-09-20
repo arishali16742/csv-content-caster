@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Menu, X, User, LogOut, ShoppingCart, Activity } from 'lucide-react';
+import { Menu, X, User, LogOut, ShoppingCart, Activity, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAdmin } from '@/hooks/useAdmin';
 import { useCart } from '@/hooks/useCart';
+import { useAdminMessages } from '@/hooks/useAdminMessages';
 import { Button } from '@/components/ui/button';
 import LoginModal from './LoginModal';
 
@@ -17,6 +18,7 @@ const Navbar = () => {
   const { user, signOut, isAuthenticated } = useAuth();
   const { isAdmin } = useAdmin();
   const { cartCount } = useCart();
+  const { hasUnreadMessages } = useAdminMessages();
   const isHomePage = location.pathname === '/';
 
   useEffect(() => {
@@ -148,14 +150,24 @@ const Navbar = () => {
               </button>
               
               {isAuthenticated && (
-                <button onClick={() => handleNavigation('/cart')} className={`${getLinkClasses()} relative`}>
-                  <ShoppingCart className="h-5 w-5" />
-                  {cartCount > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
-                      {cartCount > 99 ? '99+' : cartCount}
-                    </span>
+                <>
+                  <button onClick={() => handleNavigation('/cart')} className={`${getLinkClasses()} relative`}>
+                    <ShoppingCart className="h-5 w-5" />
+                    {cartCount > 0 && (
+                      <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+                        {cartCount > 99 ? '99+' : cartCount}
+                      </span>
+                    )}
+                  </button>
+                  {hasUnreadMessages && (
+                    <button onClick={() => handleNavigation('/cart')} className={`${getLinkClasses()} relative`}>
+                      <MessageCircle className="h-5 w-5" />
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-3 w-3 flex items-center justify-center">
+                        <span className="sr-only">New message</span>
+                      </span>
+                    </button>
                   )}
-                </button>
+                </>
               )}
               
               {isAuthenticated && isAdmin && (
@@ -195,17 +207,30 @@ const Navbar = () => {
 
             <div className="lg:hidden flex items-center">
               {isAuthenticated && (
-                <button 
-                  onClick={() => handleNavigation('/cart')} 
-                  className="mr-4 text-gray-700 hover:text-travel-primary relative"
-                >
-                  <ShoppingCart className="h-6 w-6" />
-                  {cartCount > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
-                      {cartCount > 99 ? '99+' : cartCount}
-                    </span>
+                <div className="flex items-center space-x-2 mr-4">
+                  <button 
+                    onClick={() => handleNavigation('/cart')} 
+                    className="text-gray-700 hover:text-travel-primary relative"
+                  >
+                    <ShoppingCart className="h-6 w-6" />
+                    {cartCount > 0 && (
+                      <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+                        {cartCount > 99 ? '99+' : cartCount}
+                      </span>
+                    )}
+                  </button>
+                  {hasUnreadMessages && (
+                    <button 
+                      onClick={() => handleNavigation('/cart')} 
+                      className="text-gray-700 hover:text-travel-primary relative"
+                    >
+                      <MessageCircle className="h-6 w-6" />
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-3 w-3 flex items-center justify-center">
+                        <span className="sr-only">New message</span>
+                      </span>
+                    </button>
                   )}
-                </button>
+                </div>
               )}
               <button
                 onClick={toggleMenu}

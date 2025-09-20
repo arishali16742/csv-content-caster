@@ -9,6 +9,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Trash2, Plus, Minus, ShoppingCart, Calendar, Eye, X, Users, Plane, Clock, FileText, Copy, Tag, BookCheck, ArrowLeft, MessageSquare } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { useToast } from './ui/use-toast';
 import { format } from 'date-fns';
 import BookingPopup from './BookingPopup';
@@ -58,6 +59,7 @@ const Cart = () => {
   const [isBookingPopupOpen, setIsBookingPopupOpen] = useState(false);
   const [comments, setComments] = useState('');
   const [savingComments, setSavingComments] = useState(false);
+  const [selectedPackageForComments, setSelectedPackageForComments] = useState<string>('');
 
   const loadCartItems = async () => {
     if (!user) {
@@ -122,33 +124,49 @@ const Cart = () => {
     }
   };
 
-  // Load initial comments
+  // Load initial comments and set default selected package
   useEffect(() => {
     if (cartItems.length > 0) {
       setComments('');
+      if (!selectedPackageForComments) {
+        setSelectedPackageForComments(cartItems[0].id);
+      }
     }
   }, [cartItems]);
 
+  // Load comments for selected package
+  useEffect(() => {
+    if (selectedPackageForComments) {
+      const selectedItem = cartItems.find(item => item.id === selectedPackageForComments);
+      setComments(selectedItem?.comments || '');
+    }
+  }, [selectedPackageForComments, cartItems]);
+
   const handleSaveComments = async () => {
-    if (!user || cartItems.length === 0 || !comments.trim()) return;
+    if (!user || cartItems.length === 0 || !comments.trim() || !selectedPackageForComments) return;
 
     setSavingComments(true);
     try {
-      // Update all cart items with the same comments
+      // Update only the specific cart item with comments
       const { error } = await supabase
         .from('cart')
         .update({ comments: comments.trim() })
+        .eq('id', selectedPackageForComments)
         .eq('user_id', user.id);
 
       if (error) throw error;
 
       // Update local state
-      setCartItems(items => items.map(item => ({ ...item, comments: comments.trim() })));
+      setCartItems(items => items.map(item => 
+        item.id === selectedPackageForComments 
+          ? { ...item, comments: comments.trim() } 
+          : item
+      ));
       setComments(''); // Clear input after successful save
 
       toast({
         title: "Message Sent",
-        description: "Your message has been sent to our support team.",
+        description: "Your message has been sent to our support team for the selected package.",
       });
     } catch (error) {
       console.error('Error saving comments:', error);
@@ -531,51 +549,75 @@ const Cart = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    {/* Package Selector */}
+                    {cartItems.length > 0 && (
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Select Package for Conversation:</label>
+                        <Select value={selectedPackageForComments} onValueChange={setSelectedPackageForComments}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a package" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {cartItems.map((item) => (
+                              <SelectItem key={item.id} value={item.id}>
+                                {item.packages?.title || `Package (ID: ${item.package_id})`}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
                     {/* Chat Messages */}
                     <div className="max-h-60 overflow-y-auto space-y-3 border rounded-lg p-4 bg-gray-50">
-                      {cartItems.length > 0 ? (
-                        <>
-                          {/* Customer Messages */}
-                          {cartItems.some(item => item.comments) && (
-                            <div className="flex justify-end">
-                              <div className="bg-primary text-primary-foreground p-3 rounded-lg max-w-[80%] shadow-sm">
-                                <p className="text-sm">{cartItems.find(item => item.comments)?.comments}</p>
-                                <p className="text-xs opacity-75 mt-1">You</p>
-                              </div>
-                            </div>
-                          )}
-                          
-                          {/* Admin Response */}
-                          {cartItems.some(item => item.admin_response) && (
-                            <div className="flex justify-start">
-                              <div className="bg-white border p-3 rounded-lg max-w-[80%] shadow-sm">
-                                <p className="text-sm">{cartItems.find(item => item.admin_response)?.admin_response}</p>
-                                {cartItems.find(item => item.admin_response_file_url)?.admin_response_file_url && (
-                                  <a 
-                                    href={cartItems.find(item => item.admin_response_file_url)?.admin_response_file_url} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="text-xs text-primary hover:underline mt-2 block flex items-center gap-1"
-                                  >
-                                    📎 View Attachment
-                                  </a>
-                                )}
-                                <p className="text-xs text-muted-foreground mt-1">Support Team</p>
-                              </div>
-                            </div>
-                          )}
-                          
-                          {/* Empty state */}
-                          {!cartItems.some(item => item.comments || item.admin_response) && (
-                            <div className="text-center text-gray-500 py-8">
-                              <MessageSquare className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                              <p className="text-sm">No messages yet. Start a conversation with our team!</p>
-                            </div>
-                          )}
-                        </>
+                      {cartItems.length > 0 && selectedPackageForComments ? (
+                        (() => {
+                          const selectedItem = cartItems.find(item => item.id === selectedPackageForComments);
+                          return (
+                            <>
+                              {/* Customer Messages */}
+                              {selectedItem?.comments && (
+                                <div className="flex justify-end">
+                                  <div className="bg-primary text-primary-foreground p-3 rounded-lg max-w-[80%] shadow-sm">
+                                    <p className="text-sm">{selectedItem.comments}</p>
+                                    <p className="text-xs opacity-75 mt-1">You</p>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Admin Response */}
+                              {selectedItem?.admin_response && (
+                                <div className="flex justify-start">
+                                  <div className="bg-white border p-3 rounded-lg max-w-[80%] shadow-sm">
+                                    <p className="text-sm">{selectedItem.admin_response}</p>
+                                    {selectedItem.admin_response_file_url && (
+                                      <a 
+                                        href={selectedItem.admin_response_file_url} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="text-xs text-primary hover:underline mt-2 block flex items-center gap-1"
+                                      >
+                                        📎 View Attachment
+                                      </a>
+                                    )}
+                                    <p className="text-xs text-muted-foreground mt-1">Support Team</p>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Empty state */}
+                              {!selectedItem?.comments && !selectedItem?.admin_response && (
+                                <div className="text-center text-gray-500 py-8">
+                                  <MessageSquare className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                                  <p className="text-sm">No messages yet for this package. Start a conversation with our team!</p>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()
                       ) : (
                         <div className="text-center text-gray-500 py-8">
-                          <p className="text-sm">Add items to your cart to start messaging</p>
+                          <p className="text-sm">Select a package to start messaging</p>
                         </div>
                       )}
                     </div>
@@ -591,7 +633,7 @@ const Cart = () => {
                       />
                       <Button 
                         onClick={handleSaveComments}
-                        disabled={savingComments || !comments.trim() || cartItems.length === 0}
+                        disabled={savingComments || !comments.trim() || cartItems.length === 0 || !selectedPackageForComments}
                         size="sm"
                         className="w-full"
                       >
