@@ -148,6 +148,8 @@ export type Database = {
       }
       cart: {
         Row: {
+          admin_response: string | null
+          admin_response_file_url: string | null
           applied_coupon_details: string | null
           best_time_to_connect: string | null
           booking_type: string
@@ -168,6 +170,8 @@ export type Database = {
           with_visa: boolean | null
         }
         Insert: {
+          admin_response?: string | null
+          admin_response_file_url?: string | null
           applied_coupon_details?: string | null
           best_time_to_connect?: string | null
           booking_type?: string
@@ -188,6 +192,8 @@ export type Database = {
           with_visa?: boolean | null
         }
         Update: {
+          admin_response?: string | null
+          admin_response_file_url?: string | null
           applied_coupon_details?: string | null
           best_time_to_connect?: string | null
           booking_type?: string
