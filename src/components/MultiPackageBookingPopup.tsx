@@ -57,6 +57,11 @@ const MultiPackageBookingPopup = ({
   const [phoneNumber, setPhoneNumber] = useState('');
   const [bestTimeDate, setBestTimeDate] = useState<Date>();
   const [bestTimeValue, setBestTimeValue] = useState('');
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
+  const [finalPrice, setFinalPrice] = useState(0);
+  const [couponMessage, setCouponMessage] = useState({ text: '', type: 'info' });
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -66,6 +71,10 @@ const MultiPackageBookingPopup = ({
   useEffect(() => {
     if (open && cartItems.length > 0) {
       setSelectedPackages(new Set(cartItems.map(item => item.id)));
+      setFinalPrice(getTotalPrice());
+      setAppliedCoupon(null);
+      setCouponCode('');
+      setCouponMessage({ text: '', type: 'info' });
     }
   }, [open, cartItems]);
 
@@ -85,6 +94,66 @@ const MultiPackageBookingPopup = ({
 
   const getTotalPrice = () => {
     return getSelectedItems().reduce((total, item) => total + item.total_price + (item.visa_cost || 0), 0);
+  };
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode) {
+      setCouponMessage({ text: 'Please enter a coupon code.', type: 'error' });
+      return;
+    }
+    if (!user) {
+      toast({ title: 'Not Logged In', description: 'Please log in to apply coupons.', variant: 'destructive' });
+      return;
+    }
+
+    setIsApplyingCoupon(true);
+    setCouponMessage({ text: '', type: 'info' });
+
+    try {
+      const { data: couponData, error } = await supabase
+        .from('user_coupons')
+        .select('*')
+        .eq('coupon_code', couponCode.trim().toUpperCase())
+        .eq('user_id', user.id)
+        .single();
+
+      if (error || !couponData) {
+        setCouponMessage({ text: 'Invalid or expired coupon code.', type: 'error' });
+        return;
+      }
+
+      if (couponData.used) {
+        setCouponMessage({ text: 'This coupon has already been used.', type: 'error' });
+        return;
+      }
+
+      if (new Date(couponData.expires_at) < new Date()) {
+        setCouponMessage({ text: 'This coupon has expired.', type: 'error' });
+        return;
+      }
+
+      const discountString = couponData.discount;
+      const percentageMatch = discountString.match(/(\d+)%/);
+      if (percentageMatch) {
+        const percentage = parseInt(percentageMatch[1], 10);
+        const totalPrice = getTotalPrice();
+        const discountAmount = (totalPrice * percentage) / 100;
+        setFinalPrice(totalPrice - discountAmount);
+        setAppliedCoupon(couponData);
+        setCouponMessage({ text: `Success! ${couponData.discount} applied.`, type: 'success' });
+        toast({
+          title: 'Coupon Applied!',
+          description: `You've received a ${couponData.discount} discount.`,
+        });
+      } else {
+        setCouponMessage({ text: 'This coupon is not a percentage discount and cannot be applied here.', type: 'error' });
+      }
+    } catch (e) {
+      setCouponMessage({ text: 'Error while validating coupon.', type: 'error' });
+      console.error('Coupon application error:', e);
+    } finally {
+      setIsApplyingCoupon(false);
+    }
   };
 
   const getTotalDays = () => {
@@ -125,12 +194,17 @@ const MultiPackageBookingPopup = ({
 
     try {
       const selectedItems = getSelectedItems();
-      const bookingData = {
+      const bookingData: any = {
         phone_number: phoneNumber,
         best_time_to_connect: bestTimeToConnect,
         booking_type: 'booking',
         updated_at: new Date().toISOString(),
       };
+
+      if (appliedCoupon) {
+        bookingData.total_price = finalPrice;
+        bookingData.applied_coupon_details = `${appliedCoupon.offer_title} (${appliedCoupon.discount})`;
+      }
 
       // Update all selected packages to booked status
       const updatePromises = selectedItems.map(item =>
@@ -241,10 +315,17 @@ const MultiPackageBookingPopup = ({
                   <span>{getTotalMembers()}</span>
                 </div>
                 <hr className="my-2" />
-                <div className="flex justify-between text-lg font-bold">
-                  <span>Total Amount:</span>
-                  <span className="text-travel-primary">₹{formatIndianCurrency(getTotalPrice())}</span>
-                </div>
+                 <div className="flex justify-between text-lg font-bold">
+                   <span>Total Amount:</span>
+                   {appliedCoupon ? (
+                     <div className="text-right">
+                       <span className="text-sm text-gray-500 line-through">₹{formatIndianCurrency(getTotalPrice())}</span>
+                       <span className="text-travel-primary ml-2">₹{formatIndianCurrency(finalPrice)}</span>
+                     </div>
+                   ) : (
+                     <span className="text-travel-primary">₹{formatIndianCurrency(getTotalPrice())}</span>
+                   )}
+                 </div>
               </div>
             </div>
           )}
@@ -296,11 +377,34 @@ const MultiPackageBookingPopup = ({
                   value={bestTimeValue}
                   onChange={(e) => setBestTimeValue(e.target.value)}
                 />
-              </div>
-            </div>
-          </div>
+               </div>
+             </div>
 
-          {/* Submit Button */}
+             {/* Coupon Section */}
+             <div>
+               <label htmlFor="coupon" className="text-sm font-medium">Have a coupon?</label>
+               <div className="flex items-center gap-2">
+                 <Input
+                   id="coupon"
+                   type="text"
+                   placeholder="Enter coupon code"
+                   value={couponCode}
+                   onChange={(e) => setCouponCode(e.target.value)}
+                   disabled={!!appliedCoupon || isApplyingCoupon}
+                 />
+                 <Button type="button" onClick={handleApplyCoupon} disabled={!!appliedCoupon || isApplyingCoupon}>
+                   {isApplyingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : appliedCoupon ? 'Applied' : 'Apply'}
+                 </Button>
+               </div>
+               {couponMessage.text && (
+                 <p className={`text-sm mt-1 ${couponMessage.type === 'error' ? 'text-destructive' : couponMessage.type === 'success' ? 'text-green-600' : 'text-muted-foreground'}`}>
+                   {couponMessage.text}
+                 </p>
+               )}
+             </div>
+           </div>
+
+           {/* Submit Button */}
           <div className="flex justify-end gap-3 pt-4 border-t">
             <Button
               type="button"

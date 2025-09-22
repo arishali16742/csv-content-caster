@@ -431,6 +431,9 @@ useEffect(() => {
         item_name: packageData.title,
         user_email: user.email
       });
+
+      // Navigate to cart page after adding item
+      navigate('/cart');
     } catch (error: any) {
       toast({
         title: "Error",
