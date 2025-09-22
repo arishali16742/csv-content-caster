@@ -194,6 +194,7 @@ const BookingPopup = ({
         });
       
         onOpenChange(false);
+        window.dispatchEvent(new Event('cart-updated'));
         setPhoneNumber('');
         setBestTimeDate(undefined);
         setBestTimeValue('');
@@ -295,7 +296,7 @@ const BookingPopup = ({
       const bookingData: any = {
         phone_number: phoneNumber,
         best_time_to_connect: bestTimeToConnect,
-        booking_type: 'booked',
+        booking_type: 'booking',
       };
 
       if (appliedCoupon) {
@@ -336,10 +337,11 @@ const BookingPopup = ({
       });
 
       onOpenChange(false);
+      window.dispatchEvent(new Event('cart-updated'));
       setPhoneNumber('');
       setBestTimeDate(undefined);
       setBestTimeValue('');
-      navigate('/');
+      navigate('/booked');
     } catch (error: any) {
       toast({
         title: 'Submission Failed',

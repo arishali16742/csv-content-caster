@@ -154,6 +154,7 @@ const MultiPackageBookingPopup = ({
 
       onBookingComplete();
       onOpenChange(false);
+      window.dispatchEvent(new Event('cart-updated'));
       setPhoneNumber('');
       setBestTimeDate(undefined);
       setBestTimeValue('');

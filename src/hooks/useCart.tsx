@@ -63,6 +63,15 @@ export const useCart = () => {
     };
   }, [user]);
 
+  // Also refresh count on custom cart-updated events
+  useEffect(() => {
+    const handler = () => {
+      loadCartCount();
+    };
+    window.addEventListener('cart-updated', handler as EventListener);
+    return () => window.removeEventListener('cart-updated', handler as EventListener);
+  }, []);
+ 
   return {
     cartCount,
     loading,
