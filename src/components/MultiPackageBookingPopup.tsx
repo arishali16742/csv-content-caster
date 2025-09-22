@@ -128,7 +128,7 @@ const MultiPackageBookingPopup = ({
       const bookingData = {
         phone_number: phoneNumber,
         best_time_to_connect: bestTimeToConnect,
-        booking_type: 'booked',
+        booking_type: 'booking',
         updated_at: new Date().toISOString(),
       };
 
@@ -157,7 +157,7 @@ const MultiPackageBookingPopup = ({
       setPhoneNumber('');
       setBestTimeDate(undefined);
       setBestTimeValue('');
-      navigate('/');
+      navigate('/booked');
     } catch (error: any) {
       toast({
         title: 'Booking Failed',
