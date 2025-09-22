@@ -23,7 +23,7 @@ import ImageLayout4 from '../components/ImageLayout4';
 import TrendingDestinations from '../components/TrendingDestinations';
 import PopularDestinations from '../components/PopularDestinations';
 import HotDestinations from '../components/HotDestinations';
-import VideoSection from '../components/VideoSection';
+
 import Visa from '../components/Visa';
 import TripComparison from '../components/TripComparison';
 import AiTripPlanner from '../components/AiTripPlanner';
@@ -107,8 +107,7 @@ const Index = () => {
           ))}
         </div>
         
-        {/* Videos Section - appears before Visa & Itinerary section */}
-        <VideoSection />
+      
 
         {/* Smart Travel Tools Section - handled separately */}
         {sections.find(s => s.section_key === 'smart-tools')?.is_visible && (

@@ -37,6 +37,7 @@ import LoginPopupManagement from '../components/LoginPopupManagement';
 import OffersManagement from '../components/OffersManagement';
 import HomepageManagement from '../components/HomepageManagement';
 import CartReviewManagement from '../components/CartReviewManagement';
+import VideoManagement from '../components/VideoManagement';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -91,7 +92,8 @@ const Dashboard = () => {
     { id: 'partners', label: 'Partners' },
     { id: 'offers', label: 'Wheel Offers' },
     { id: 'login-popup', label: 'Login Popup' },
-    { id: 'cart-review', label: 'Booking Review' }
+    { id: 'cart-review', label: 'Booking Review' },
+    { id: 'video', label: 'Video Management' } // <-- new tab
   ];
 
   return (
@@ -152,6 +154,7 @@ const Dashboard = () => {
             {activeTab === 'offers' && <OffersManagement />}
             {activeTab === 'login-popup' && <LoginPopupManagement />}
             {activeTab === 'cart-review' && <CartReviewManagement />}
+            {activeTab === 'video' && <VideoManagement />} {/* <-- new content */}
           </div>
         </div>
       </main>

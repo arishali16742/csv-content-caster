@@ -100,9 +100,9 @@ const VideoSection = ({ packageId }: VideoSectionProps) => {
 
   if (loading) {
     return (
-      <section className="py-16 bg-gradient-to-br from-blue-50 to-indigo-100">
+      <section className="py-12 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-3xl">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="text-center mb-12">
+          <div className="text-center mb-8">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">Travel Videos</h2>
             <div className="animate-pulse bg-gray-200 h-4 w-64 mx-auto rounded"></div>
           </div>
@@ -129,15 +129,19 @@ const VideoSection = ({ packageId }: VideoSectionProps) => {
 
   return (
     <>
-      <section className="py-16 bg-gradient-to-br from-blue-50 to-indigo-100">
+      <section className="pt-6 pb-12 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-3xl">
+
         <div className="max-w-7xl mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-800">
-              Travel Videos
-            </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Experience destinations through our curated travel videos and get inspired for your next adventure
-            </p>
+          <div className="text-center mb-8">
+            <h2 className="text-4xl font-bold text-center mb-8 bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 bg-clip-text text-transparent">
+  Travel Videos
+</h2>
+            
+           
+            <p className="text-base text-gray-600 max-w-full whitespace-nowrap overflow-hidden">
+  Experience destinations through our curated travel videos and get inspired for your next adventure
+</p>
+
           </div>
 
           {/* Featured Video */}
@@ -180,9 +184,10 @@ const VideoSection = ({ packageId }: VideoSectionProps) => {
           {/* Video Gallery */}
           {galleryVideos.length > 0 && (
             <div>
-              <h3 className="text-2xl font-bold text-center mb-8 text-gray-800">
-                More Travel Videos
-              </h3>
+             <h3 className="text-2xl font-bold text-center mb-8 bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 bg-clip-text text-transparent">
+  More Travel Videos
+</h3>
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {galleryVideos.map((video) => (
                   <div

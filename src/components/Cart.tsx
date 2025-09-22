@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -61,6 +61,14 @@ const Cart = () => {
   const [savingComments, setSavingComments] = useState(false);
   const [selectedPackageForComments, setSelectedPackageForComments] = useState<string>('');
   const [conversations, setConversations] = useState<Record<string, any[]>>({});
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when conversations change
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [conversations]);
 
   const loadCartItems = async () => {
     if (!user) {
@@ -628,7 +636,10 @@ const Cart = () => {
                     )}
 
                     {/* Chat Messages */}
-                    <div className="max-h-60 overflow-y-auto space-y-3 border rounded-lg p-4 bg-gray-50">
+                    <div 
+                      ref={chatContainerRef}
+                      className="max-h-60 overflow-y-auto space-y-3 border rounded-lg p-4 bg-gray-50"
+                    >
                       {cartItems.length > 0 && selectedPackageForComments ? (
                         (() => {
                           const packageConversations = conversations[selectedPackageForComments] || [];
@@ -660,13 +671,31 @@ const Cart = () => {
                                         </a>
                                       )}
                                       <div className="flex items-center justify-between mt-1">
-                                        <p className={`text-xs ${message.sender_type === 'customer' ? 'opacity-75' : 'text-muted-foreground'}`}>
-                                          {message.sender_name || (message.sender_type === 'customer' ? 'You' : 'Support Team')}
-                                        </p>
-                                        <p className={`text-xs ${message.sender_type === 'customer' ? 'opacity-75' : 'text-muted-foreground'}`}>
-                                          {format(new Date(message.created_at), 'MMM dd, HH:mm')}
-                                        </p>
-                                      </div>
+  <p
+    className={`text-xs ${
+      message.sender_type === "customer"
+        ? "opacity-75"
+        : "text-muted-foreground"
+    }`}
+  >
+    {message.sender_type === "customer"
+      ? ""
+      : `Support Team | ${format(new Date(message.created_at), "MMM dd, HH:mm")}`}
+  </p>
+
+  {message.sender_type === "customer" && (
+    <p
+      className={`text-xs ${
+        message.sender_type === "customer"
+          ? "opacity-75"
+          : "text-muted-foreground"
+      }`}
+    >
+      {format(new Date(message.created_at), "MMM dd, HH:mm")}
+    </p>
+  )}
+</div>
+
                                     </div>
                                   </div>
                                 ))
@@ -772,11 +801,12 @@ const Cart = () => {
               </div>
 
               {selectedPackage.selected_date && (
-                <div>
-                  <strong className="block mb-2">Selected Date:</strong>
-                  <p className="text-gray-600">{format(new Date(selectedPackage.selected_date), 'MMMM dd, yyyy')}</p>
-                </div>
-              )}
+  <div>
+    <strong className="block mb-2">Selected Date:</strong>
+    <p className="text-gray-600">{format(new Date(selectedPackage.selected_date), 'MMMM dd, yyyy')}</p>
+  </div>
+)}
+
 
               <div>
                 <strong className="block mb-2">Destinations:</strong>
