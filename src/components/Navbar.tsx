@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Menu, X, User, LogOut, ShoppingCart, Activity, MessageCircle } from 'lucide-react';
+import { Menu, X, User, LogOut, ShoppingCart, Activity, MessageCircle, Calendar } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAdmin } from '@/hooks/useAdmin';
 import { useCart } from '@/hooks/useCart';
+import { useBookedCount } from '@/hooks/useBookedCount';
 import { useAdminMessages } from '@/hooks/useAdminMessages';
 import { Button } from '@/components/ui/button';
 import LoginModal from './LoginModal';
@@ -18,6 +19,7 @@ const Navbar = () => {
   const { user, signOut, isAuthenticated } = useAuth();
   const { isAdmin } = useAdmin();
   const { cartCount } = useCart();
+  const { bookedCount } = useBookedCount();
   const { hasUnreadMessages } = useAdminMessages();
   const isHomePage = location.pathname === '/';
 
@@ -151,14 +153,24 @@ const Navbar = () => {
               
               {isAuthenticated && (
                 <>
-                  <button onClick={() => handleNavigation('/cart')} className={`${getLinkClasses()} relative`}>
-                    <ShoppingCart className="h-5 w-5" />
-                    {cartCount > 0 && (
-                      <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
-                        {cartCount > 99 ? '99+' : cartCount}
-                      </span>
-                    )}
-                  </button>
+                   <button onClick={() => handleNavigation('/cart')} className={`${getLinkClasses()} relative`}>
+                     <ShoppingCart className="h-5 w-5" />
+                     Cart
+                     {cartCount > 0 && (
+                       <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+                         {cartCount > 99 ? '99+' : cartCount}
+                       </span>
+                     )}
+                   </button>
+                   <button onClick={() => handleNavigation('/booked')} className={`${getLinkClasses()} relative`}>
+                     <Calendar className="h-5 w-5" />
+                     Booked
+                     {bookedCount > 0 && (
+                       <span className="absolute -top-2 -right-2 bg-green-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+                         {bookedCount > 99 ? '99+' : bookedCount}
+                       </span>
+                     )}
+                   </button>
                   {hasUnreadMessages && (
                     <button onClick={() => handleNavigation('/cart')} className={`${getLinkClasses()} relative`}>
                       <MessageCircle className="h-5 w-5" />
@@ -208,17 +220,28 @@ const Navbar = () => {
             <div className="lg:hidden flex items-center">
               {isAuthenticated && (
                 <div className="flex items-center space-x-2 mr-4">
-                  <button 
-                    onClick={() => handleNavigation('/cart')} 
-                    className="text-gray-700 hover:text-travel-primary relative"
-                  >
-                    <ShoppingCart className="h-6 w-6" />
-                    {cartCount > 0 && (
-                      <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
-                        {cartCount > 99 ? '99+' : cartCount}
-                      </span>
-                    )}
-                  </button>
+                   <button 
+                     onClick={() => handleNavigation('/cart')} 
+                     className="text-gray-700 hover:text-travel-primary relative mr-2"
+                   >
+                     <ShoppingCart className="h-6 w-6" />
+                     {cartCount > 0 && (
+                       <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+                         {cartCount > 99 ? '99+' : cartCount}
+                       </span>
+                     )}
+                   </button>
+                   <button 
+                     onClick={() => handleNavigation('/booked')} 
+                     className="text-gray-700 hover:text-travel-primary relative"
+                   >
+                     <Calendar className="h-6 w-6" />
+                     {bookedCount > 0 && (
+                       <span className="absolute -top-2 -right-2 bg-green-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+                         {bookedCount > 99 ? '99+' : bookedCount}
+                       </span>
+                     )}
+                   </button>
                   {hasUnreadMessages && (
                     <button 
                       onClick={() => handleNavigation('/cart')} 
@@ -265,11 +288,16 @@ const Navbar = () => {
               Price Comparison
             </button>
             
-            {isAuthenticated && (
-              <button onClick={() => handleNavigation('/cart')} className="nav-link block text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-md text-base font-medium">
-                Cart
-              </button>
-            )}
+             {isAuthenticated && (
+               <>
+                 <button onClick={() => handleNavigation('/cart')} className="nav-link block text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-md text-base font-medium">
+                   Cart
+                 </button>
+                 <button onClick={() => handleNavigation('/booked')} className="nav-link block text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-md text-base font-medium">
+                   Booked Packages
+                 </button>
+               </>
+             )}
             
             {isAuthenticated && isAdmin && (
               <>

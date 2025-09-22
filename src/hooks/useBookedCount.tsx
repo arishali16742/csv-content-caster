@@ -2,14 +2,14 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
-export const useCart = () => {
+export const useBookedCount = () => {
   const { user, isAuthenticated } = useAuth();
-  const [cartCount, setCartCount] = useState(0);
+  const [bookedCount, setBookedCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  const loadCartCount = async () => {
+  const loadBookedCount = async () => {
     if (!user || !isAuthenticated) {
-      setCartCount(0);
+      setBookedCount(0);
       return;
     }
 
@@ -19,31 +19,31 @@ export const useCart = () => {
         .from('cart')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
-        .eq('booking_type', 'cart');
+        .eq('booking_type', 'booking');
 
       if (error) {
-        console.error('Error loading cart count:', error);
+        console.error('Error loading booked count:', error);
         return;
       }
 
-      setCartCount(count || 0);
+      setBookedCount(count || 0);
     } catch (error) {
-      console.error('Error in loadCartCount:', error);
+      console.error('Error in loadBookedCount:', error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadCartCount();
+    loadBookedCount();
   }, [user, isAuthenticated]);
 
-  // Set up real-time subscription to cart changes
+  // Set up real-time subscription to cart changes for bookings
   useEffect(() => {
     if (!user) return;
 
     const channel = supabase
-      .channel('cart_changes')
+      .channel('booking_changes')
       .on(
         'postgres_changes',
         {
@@ -52,8 +52,11 @@ export const useCart = () => {
           table: 'cart',
           filter: `user_id=eq.${user.id}`,
         },
-        () => {
-          loadCartCount();
+        (payload: any) => {
+          // Only update if it's a booking-related change
+          if (payload.new?.booking_type === 'booking' || payload.old?.booking_type === 'booking') {
+            loadBookedCount();
+          }
         }
       )
       .subscribe();
@@ -64,8 +67,8 @@ export const useCart = () => {
   }, [user]);
 
   return {
-    cartCount,
+    bookedCount,
     loading,
-    refreshCartCount: loadCartCount,
+    refreshBookedCount: loadBookedCount,
   };
 };

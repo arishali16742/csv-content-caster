@@ -87,6 +87,7 @@ const Cart = () => {
         .from('cart')
         .select('*')
         .eq('user_id', user.id)
+        .eq('booking_type', 'cart')
         .order('updated_at', { ascending: false });
 
       if (cartError) {

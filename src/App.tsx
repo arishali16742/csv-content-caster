@@ -16,6 +16,7 @@ import PriceComparison from "./pages/PriceComparison";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Cart from "./components/Cart";
+import Booked from "./pages/Booked";
 import UserActivity from "./components/UserActivity";
 import NotFound from "./pages/NotFound";
 
@@ -38,9 +39,10 @@ const App = () => (
           <Route path="/blog/:id" element={<BlogPost />} />
           <Route path="/price-comparison" element={<PriceComparison />} />
           <Route path="/auth" element={<Auth />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/cart" element={<Cart />} />
-          <Route path="/user-activity" element={<UserActivity />} />
+           <Route path="/dashboard" element={<Dashboard />} />
+           <Route path="/cart" element={<Cart />} />
+           <Route path="/booked" element={<Booked />} />
+           <Route path="/user-activity" element={<UserActivity />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
