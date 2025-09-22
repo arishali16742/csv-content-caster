@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { useToast } from './ui/use-toast';
 import { format } from 'date-fns';
 import BookingPopup from './BookingPopup';
+import MultiPackageBookingPopup from './MultiPackageBookingPopup';
 import { Textarea } from './ui/textarea';
 
 interface CartItem {
@@ -57,6 +58,7 @@ const Cart = () => {
   const [selectedPackage, setSelectedPackage] = useState<CartItem | null>(null);
   const [showPackageDetail, setShowPackageDetail] = useState(false);
   const [isBookingPopupOpen, setIsBookingPopupOpen] = useState(false);
+  const [isMultiBookingPopupOpen, setIsMultiBookingPopupOpen] = useState(false);
   const [comments, setComments] = useState('');
   const [savingComments, setSavingComments] = useState(false);
   const [selectedPackageForComments, setSelectedPackageForComments] = useState<string>('');
@@ -365,9 +367,12 @@ const Cart = () => {
 
   const handleBookThisTrip = () => {
     if (cartItems.length > 0) {
-      setSelectedPackage(cartItems[0]);
-      setIsBookingPopupOpen(true);
+      setIsMultiBookingPopupOpen(true);
     }
+  };
+
+  const handleBookingComplete = () => {
+    loadCartItems(); // Reload to show updated booking status
   };
 
   if (!isAuthenticated) {
@@ -436,7 +441,16 @@ const Cart = () => {
                   console.log('Rendering cart item:', item, 'Package data:', packageData);
                   
                   return (
-                    <Card key={item.id} className="overflow-hidden">
+                    <Card key={item.id} className={`overflow-hidden relative ${item.booking_type === 'booked' ? 'ring-2 ring-green-500' : ''}`}>
+                      {/* Booked Status Indicator */}
+                      {item.booking_type === 'booked' && (
+                        <div className="absolute top-4 right-4 z-10">
+                          <div className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
+                            <BookCheck className="h-3 w-3" />
+                            BOOKED
+                          </div>
+                        </div>
+                      )}
                       <CardContent className="p-4 md:p-6">
                         <div className="flex flex-col sm:flex-row gap-4">
                           <img
@@ -923,6 +937,13 @@ const Cart = () => {
           appliedCouponDetails={selectedPackage.applied_coupon_details}
         />
       )}
+
+      <MultiPackageBookingPopup
+        open={isMultiBookingPopupOpen}
+        onOpenChange={setIsMultiBookingPopupOpen}
+        cartItems={cartItems}
+        onBookingComplete={handleBookingComplete}
+      />
 
       <Footer />
     </div>
