@@ -80,12 +80,53 @@ const CartReviewManagement = () => {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  // Auto-scroll to bottom when conversations change
+  // Real-time subscription for conversations
   useEffect(() => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-    }
-  }, [conversations]);
+    if (!cartItem?.id) return;
+
+    const channel = supabase
+      .channel(`conversations_${cartItem.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'conversations',
+          filter: `cart_item_id=eq.${cartItem.id}`,
+        },
+        (payload) => {
+          console.log('Conversation updated:', payload);
+          loadConversations(cartItem.id);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [cartItem?.id]);
+
+  // Real-time subscription for all bookings
+  useEffect(() => {
+    const channel = supabase
+      .channel('cart_updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'cart',
+        },
+        () => {
+          fetchAllBookings();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const fetchAllBookings = async () => {
     setFetchingAll(true);

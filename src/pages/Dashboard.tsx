@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -44,6 +44,15 @@ const Dashboard = () => {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { isAdmin, loading: adminLoading } = useAdmin();
   const [activeTab, setActiveTab] = useState('homepage');
+
+  // Listen for tab change events from navbar
+  useEffect(() => {
+    const handleTabChange = (event: CustomEvent) => {
+      setActiveTab(event.detail);
+    };
+    window.addEventListener('setDashboardTab', handleTabChange as EventListener);
+    return () => window.removeEventListener('setDashboardTab', handleTabChange as EventListener);
+  }, []);
 
   if (authLoading || adminLoading) {
     return (

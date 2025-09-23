@@ -8,6 +8,7 @@ import { useBookedCount } from '@/hooks/useBookedCount';
 import { useAdminMessages } from '@/hooks/useAdminMessages';
 import { useAdminNotifications } from '@/hooks/useAdminNotifications';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 import LoginModal from './LoginModal';
 
 const Navbar = () => {
@@ -62,16 +63,31 @@ const Navbar = () => {
     }, 0);
   };
 
-  const handleCartClick = () => {
+  const handleCartClick = async () => {
     setIsMenuOpen(false);
     if (isAdmin) {
-      // For admin: if they have their own cart items, go to cart
-      // Otherwise, go to dashboard to view customer requests
-      const hasOwnCartItems = cartCount > 0;
-      if (hasOwnCartItems) {
-        navigate('/cart');
-      } else {
-        navigate('/dashboard');
+      // For admin: check if they have personal cart items
+      try {
+        const { data: personalCartItems } = await supabase
+          .from('cart')
+          .select('id')
+          .eq('user_id', user?.id)
+          .eq('booking_type', 'cart');
+        
+        if (!personalCartItems || personalCartItems.length === 0) {
+          // No personal cart items, go to dashboard booking review
+          navigate('/dashboard');
+          setTimeout(() => {
+            // Set the active tab to cart-review
+            window.dispatchEvent(new CustomEvent('setDashboardTab', { detail: 'cart-review' }));
+          }, 100);
+        } else {
+          // Has personal cart items, go to cart
+          navigate('/cart');
+        }
+      } catch (error) {
+        console.error('Error checking personal cart items:', error);
+        navigate('/cart'); // Fallback to cart
       }
     } else {
       // For regular users: always go to cart
@@ -215,7 +231,7 @@ const Navbar = () => {
                     <Activity className="h-5 w-5" />
                   </button>
                   {adminNotificationCount > 0 && (
-                    <button onClick={() => handleNavigation('/dashboard')} className={`${getLinkClasses()} relative`}>
+                    <button onClick={() => handleNavigation('/dashboard')} className={`${getLinkClasses()} relative`} title="Admin Notifications: New bookings, cart items, and customer messages">
                       <Bell className="h-5 w-5" />
                       <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
                         {adminNotificationCount > 99 ? '99+' : adminNotificationCount}
