@@ -51,8 +51,8 @@ const BookingListItem = ({ booking, onSelect }: { booking: FetchedCartItem; onSe
         {booking.profile?.email || 'N/A'}
       </p>
       <div className="flex items-center gap-2">
-        {booking.booking_type === 'booked' ? (
-          <Badge variant="default" className="text-xs bg-blue-500 hover:bg-blue-600">Booked</Badge>
+        {booking.booking_type === 'booked' || booking.booking_type === 'booking' ? (
+          <Badge variant="default" className="text-xs bg-green-500 hover:bg-green-600">Booked</Badge>
         ) : (
           <Badge variant="secondary" className="text-xs">In Cart</Badge>
         )}
@@ -390,7 +390,8 @@ const CartReviewManagement = () => {
 
   const filteredBookings = allBookings.filter(booking => {
     if (bookingTypeFilter === 'all') return true;
-    if (bookingTypeFilter === 'cart' && booking.booking_type !== 'booked') return true;
+    if (bookingTypeFilter === 'cart') return booking.booking_type === 'cart';
+    if (bookingTypeFilter === 'booked') return booking.booking_type === 'booking';
     return booking.booking_type === bookingTypeFilter;
   });
 
@@ -479,28 +480,78 @@ const CartReviewManagement = () => {
                   )}
 
                   <div>
-                    <h4 className="font-semibold text-md mb-2">Pricing Details</h4>
-                    <div className="text-sm space-y-1 pl-4 border-l-2">
-                      {cartItem.price_before_admin_discount ? (
-                        <>
-                          <p>Original Price: <span className="line-through">₹{cartItem.price_before_admin_discount.toLocaleString()}</span></p>
-                          <p className="text-green-600 font-bold">Discounted Price: ₹{cartItem.total_price.toLocaleString()}</p>
-                        </>
-                      ) : (
-                        <p>Package Price: ₹{cartItem.total_price.toLocaleString()}</p>
-                      )}
-                      {cartItem.with_visa && <p>Visa Cost: ₹{(cartItem.visa_cost || 0).toLocaleString()}</p>}
-                      <p>
-                        <strong>Coupon: </strong>
-                        {cartItem.applied_coupon_details ? (
-                          <span className="font-bold text-blue-600">{cartItem.applied_coupon_details}</span>
-                        ) : (
-                          <span>None</span>
-                        )}
-                      </p>
-                      <p className="font-bold text-base">Total: ₹{(cartItem.total_price + (cartItem.visa_cost || 0)).toLocaleString()}</p>
-                    </div>
-                  </div>
+  <h4 className="font-semibold text-md mb-2">Pricing Details</h4>
+  <div className="text-sm space-y-1 pl-4 border-l-2">
+    {(() => {
+      // Calculate original price and coupon details
+      let originalPrice = cartItem.total_price;
+      let couponPercentage = 0;
+      let priceAfterCoupon = cartItem.total_price;
+      
+      if (cartItem.applied_coupon_details) {
+        const couponMatch = cartItem.applied_coupon_details.match(/(\d+)%/);
+        if (couponMatch) {
+          couponPercentage = parseInt(couponMatch[1]);
+          // Calculate original price before any discounts
+          if (cartItem.price_before_admin_discount) {
+            // Has admin discount: final_price = (original_price * (1 - coupon/100)) * (1 - admin_discount/100)
+            // So original_price = final_price / ((1 - coupon/100) * (1 - admin_discount/100))
+            const adminDiscountAmount = cartItem.price_before_admin_discount - cartItem.total_price;
+            const adminDiscountPercent = (adminDiscountAmount / cartItem.price_before_admin_discount) * 100;
+            originalPrice = cartItem.total_price / ((1 - couponPercentage / 100) * (1 - adminDiscountPercent / 100));
+            priceAfterCoupon = originalPrice * (1 - couponPercentage / 100);
+          } else {
+            // No admin discount: final_price = original_price * (1 - coupon/100)
+            originalPrice = cartItem.total_price / (1 - couponPercentage / 100);
+            priceAfterCoupon = cartItem.total_price;
+          }
+        }
+      } else if (cartItem.price_before_admin_discount) {
+        // No coupon but has admin discount
+        originalPrice = cartItem.price_before_admin_discount;
+        priceAfterCoupon = cartItem.price_before_admin_discount;
+      }
+
+      const finalPrice = cartItem.total_price + (cartItem.visa_cost || 0);
+      const hasAdminDiscount = cartItem.price_before_admin_discount && 
+                              cartItem.price_before_admin_discount !== cartItem.total_price;
+      
+      const adminDiscountAmount = hasAdminDiscount ? 
+        priceAfterCoupon - cartItem.total_price : 0;
+      
+      const adminDiscountPercent = hasAdminDiscount ? 
+        (adminDiscountAmount / priceAfterCoupon * 100) : 0;
+
+      return (
+        <>
+          <p>Original Price: ₹{Math.round(originalPrice).toLocaleString()}</p>
+          
+          {cartItem.applied_coupon_details && couponPercentage > 0 && (
+            <>
+              <p>
+                <strong>Coupon: </strong>
+                <span className="font-bold text-blue-600">{cartItem.applied_coupon_details}</span>
+                <span> (-₹{Math.round(originalPrice * couponPercentage / 100).toLocaleString()})</span>
+              </p>
+              <p>Price after coupon: ₹{Math.round(priceAfterCoupon).toLocaleString()}</p>
+            </>
+          )}
+          
+          {hasAdminDiscount && (
+            <p>Admin Discount: {Math.round(adminDiscountPercent)}% (-₹{Math.round(adminDiscountAmount).toLocaleString()})</p>
+          )}
+          
+          {cartItem.with_visa && <p>Visa Cost: ₹{(cartItem.visa_cost || 0).toLocaleString()}</p>}
+          
+          {/* Final Price - always shown in green as the last item */}
+          <p className="text-green-600 font-bold text-base">
+            Final Price: ₹{finalPrice.toLocaleString()}
+          </p>
+        </>
+      );
+    })()}
+  </div>
+</div>
 
                   <div>
                     <h4 className="font-semibold text-md mb-2">Admin Discount</h4>
