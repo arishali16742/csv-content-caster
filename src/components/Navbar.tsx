@@ -21,7 +21,7 @@ const Navbar = () => {
   const { isAdmin } = useAdmin();
   const { cartCount } = useCart();
   const { bookedCount } = useBookedCount();
-  const { hasUnreadMessages } = useAdminMessages();
+  const { hasUnreadMessages, unreadChatCount } = useAdminMessages();
   const { unreadCount: adminNotificationCount } = useAdminNotifications();
   const isHomePage = location.pathname === '/';
 
@@ -57,6 +57,26 @@ const Navbar = () => {
     setIsMenuOpen(false);
     navigate(path);
     // Scroll to top immediately after navigation
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 0);
+  };
+
+  const handleCartClick = () => {
+    setIsMenuOpen(false);
+    if (isAdmin) {
+      // For admin: if they have their own cart items, go to cart
+      // Otherwise, go to dashboard to view customer requests
+      const hasOwnCartItems = cartCount > 0;
+      if (hasOwnCartItems) {
+        navigate('/cart');
+      } else {
+        navigate('/dashboard');
+      }
+    } else {
+      // For regular users: always go to cart
+      navigate('/cart');
+    }
     setTimeout(() => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }, 0);
@@ -155,7 +175,7 @@ const Navbar = () => {
               
               {isAuthenticated && (
                 <>
-                   <button onClick={() => handleNavigation('/cart')} className={`${getLinkClasses()} relative`}>
+                   <button onClick={handleCartClick} className={`${getLinkClasses()} relative`}>
                      <ShoppingCart className="h-5 w-5" />
                      Cart
                      {cartCount > 0 && (
@@ -173,14 +193,16 @@ const Navbar = () => {
                        </span>
                      )}
                    </button>
-                  {hasUnreadMessages && (
-                    <button onClick={() => handleNavigation('/cart')} className={`${getLinkClasses()} relative`}>
-                      <MessageCircle className="h-5 w-5" />
-                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-3 w-3 flex items-center justify-center">
-                        <span className="sr-only">New message</span>
-                      </span>
-                    </button>
-                  )}
+                   {hasUnreadMessages && (
+                     <button onClick={() => handleNavigation(isAdmin ? '/dashboard' : '/cart')} className={`${getLinkClasses()} relative`}>
+                       <MessageCircle className="h-5 w-5" />
+                       {unreadChatCount > 0 && (
+                         <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+                           {unreadChatCount > 99 ? '99+' : unreadChatCount}
+                         </span>
+                       )}
+                     </button>
+                   )}
                 </>
               )}
               
@@ -231,7 +253,7 @@ const Navbar = () => {
               {isAuthenticated && (
                 <div className="flex items-center space-x-2 mr-4">
                    <button 
-                     onClick={() => handleNavigation('/cart')} 
+                     onClick={handleCartClick} 
                      className="text-gray-700 hover:text-travel-primary relative mr-2"
                    >
                      <ShoppingCart className="h-6 w-6" />
@@ -252,17 +274,19 @@ const Navbar = () => {
                        </span>
                      )}
                    </button>
-                  {hasUnreadMessages && (
-                    <button 
-                      onClick={() => handleNavigation('/cart')} 
-                      className="text-gray-700 hover:text-travel-primary relative"
-                    >
-                      <MessageCircle className="h-6 w-6" />
-                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-3 w-3 flex items-center justify-center">
-                        <span className="sr-only">New message</span>
-                      </span>
-                    </button>
-                  )}
+                   {hasUnreadMessages && (
+                     <button 
+                       onClick={() => handleNavigation(isAdmin ? '/dashboard' : '/cart')} 
+                       className="text-gray-700 hover:text-travel-primary relative"
+                     >
+                       <MessageCircle className="h-6 w-6" />
+                       {unreadChatCount > 0 && (
+                         <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+                           {unreadChatCount > 99 ? '99+' : unreadChatCount}
+                         </span>
+                       )}
+                     </button>
+                   )}
                 </div>
               )}
               <button
@@ -300,7 +324,7 @@ const Navbar = () => {
             
              {isAuthenticated && (
                <>
-                 <button onClick={() => handleNavigation('/cart')} className="nav-link block text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-md text-base font-medium">
+                 <button onClick={handleCartClick} className="nav-link block text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-md text-base font-medium">
                    Cart
                  </button>
                  <button onClick={() => handleNavigation('/booked')} className="nav-link block text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-md text-base font-medium">

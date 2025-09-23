@@ -7,6 +7,7 @@ export const useAdminMessages = () => {
   const { user, isAuthenticated } = useAuth();
   const { isAdmin } = useAdmin();
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
   const checkForUnreadMessages = async () => {
@@ -18,10 +19,10 @@ export const useAdminMessages = () => {
     setLoading(true);
     try {
       if (isAdmin) {
-        // Admin users: check for unread customer messages
+        // Admin users: check for unread customer messages grouped by cart_item_id
         const { data: unreadMessages, error: messagesError } = await supabase
           .from('conversations')
-          .select('id')
+          .select('cart_item_id')
           .eq('sender_type', 'customer')
           .eq('read_by_admin', false);
 
@@ -30,7 +31,12 @@ export const useAdminMessages = () => {
           return;
         }
 
-        setHasUnreadMessages(unreadMessages && unreadMessages.length > 0);
+        // Count unique cart_item_ids (individual chats)
+        const uniqueChats = new Set(unreadMessages?.map(msg => msg.cart_item_id) || []);
+        const chatCount = uniqueChats.size;
+        
+        setHasUnreadMessages(chatCount > 0);
+        setUnreadChatCount(chatCount);
       } else {
         // Regular users: check for unread admin messages
         const { data: cartItems, error: cartError } = await supabase
@@ -45,13 +51,14 @@ export const useAdminMessages = () => {
 
         if (!cartItems || cartItems.length === 0) {
           setHasUnreadMessages(false);
+          setUnreadChatCount(0);
           return;
         }
 
         const cartItemIds = cartItems.map(item => item.id);
         const { data: adminMessages, error: messagesError } = await supabase
           .from('conversations')
-          .select('id')
+          .select('cart_item_id')
           .in('cart_item_id', cartItemIds)
           .eq('sender_type', 'admin')
           .eq('read_by_customer', false);
@@ -61,7 +68,12 @@ export const useAdminMessages = () => {
           return;
         }
 
-        setHasUnreadMessages(adminMessages && adminMessages.length > 0);
+        // Count unique cart_item_ids (individual chats)
+        const uniqueChats = new Set(adminMessages?.map(msg => msg.cart_item_id) || []);
+        const chatCount = uniqueChats.size;
+        
+        setHasUnreadMessages(chatCount > 0);
+        setUnreadChatCount(chatCount);
       }
     } catch (error) {
       console.error('Error in checkForUnreadMessages:', error);
@@ -137,6 +149,7 @@ export const useAdminMessages = () => {
 
   return {
     hasUnreadMessages,
+    unreadChatCount,
     loading,
     refreshMessages: checkForUnreadMessages,
     markMessagesAsRead,
