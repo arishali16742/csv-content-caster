@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { useAdmin } from './useAdmin';
 
 export const useBookedCount = () => {
   const { user, isAuthenticated } = useAuth();
+  const { isAdmin } = useAdmin();
   const [bookedCount, setBookedCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
@@ -15,11 +17,17 @@ export const useBookedCount = () => {
 
     setLoading(true);
     try {
-      const { count, error } = await supabase
+      let query = supabase
         .from('cart')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
         .eq('booking_type', 'booking');
+      
+      // For regular users, filter by user_id. For admins, show all bookings
+      if (!isAdmin) {
+        query = query.eq('user_id', user.id);
+      }
+
+      const { count, error } = await query;
 
       if (error) {
         console.error('Error loading booked count:', error);
@@ -36,7 +44,7 @@ export const useBookedCount = () => {
 
   useEffect(() => {
     loadBookedCount();
-  }, [user, isAuthenticated]);
+  }, [user, isAuthenticated, isAdmin]);
 
   // Set up real-time subscription to cart changes for bookings
   useEffect(() => {
@@ -50,7 +58,7 @@ export const useBookedCount = () => {
           event: '*',
           schema: 'public',
           table: 'cart',
-          filter: `user_id=eq.${user.id}`,
+          filter: isAdmin ? undefined : `user_id=eq.${user.id}`,
         },
         (payload: any) => {
           // Only update if it's a booking-related change
@@ -64,7 +72,7 @@ export const useBookedCount = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, isAdmin]);
 
   return {
     bookedCount,
