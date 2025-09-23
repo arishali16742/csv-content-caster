@@ -87,52 +87,76 @@ const CartReviewManagement = () => {
     }
   }, [conversations]);
 
-  useEffect(() => {
-    const fetchAllBookings = async () => {
-      setFetchingAll(true);
-      try {
-        const { data, error } = await supabase.rpc('get_all_bookings_with_details');
-        if (error) {
-          if (error.message.includes('User is not an admin')) {
-            toast({
-              title: 'Permission Denied',
-              description: "You don't have permission to view bookings.",
-              variant: 'destructive',
-            });
-          } else {
-            throw error;
-          }
-          return;
+  const fetchAllBookings = async () => {
+    setFetchingAll(true);
+    try {
+      const { data, error } = await supabase.rpc('get_all_bookings_with_details');
+      if (error) {
+        if (error.message.includes('User is not an admin')) {
+          toast({
+            title: 'Permission Denied',
+            description: "You don't have permission to view bookings.",
+            variant: 'destructive',
+          });
+        } else {
+          throw error;
         }
-        if (data) {
-          const bookingsWithProfiles = data.map((item: any) => ({
-            ...item,
-            packages: item.package_title ? {
-              title: item.package_title,
-              country: item.package_country,
-              destinations: item.package_destinations,
-            } : null,
-            profile: item.profile_email ? {
-              id: item.user_id,
-              first_name: item.profile_first_name,
-              last_name: item.profile_last_name,
-              email: item.profile_email,
-            } : null,
-          }));
-          setAllBookings(bookingsWithProfiles as FetchedCartItem[]);
-        }
-      } catch (error: any) {
-        toast({
-          title: 'Error fetching bookings',
-          description: error.message,
-          variant: 'destructive',
-        });
-      } finally {
-        setFetchingAll(false);
+        return;
       }
-    };
+      if (data) {
+        const bookingsWithProfiles = data.map((item: any) => ({
+          ...item,
+          packages: item.package_title ? {
+            title: item.package_title,
+            country: item.package_country,
+            destinations: item.package_destinations,
+          } : null,
+          profile: item.profile_email ? {
+            id: item.user_id,
+            first_name: item.profile_first_name,
+            last_name: item.profile_last_name,
+            email: item.profile_email,
+          } : null,
+        }));
+        setAllBookings(bookingsWithProfiles as FetchedCartItem[]);
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Error fetching bookings',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setFetchingAll(false);
+    }
+  };
+
+  useEffect(() => {
     fetchAllBookings();
   }, [toast]);
+
+  // Set up real-time subscription for cart updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('cart_updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'cart',
+        },
+        (payload) => {
+          console.log('Cart update received:', payload);
+          fetchAllBookings(); // Refresh the bookings list
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const loadConversations = async (cartItemId: string) => {
     try {
@@ -147,6 +171,12 @@ const CartReviewManagement = () => {
         return;
       }
       setConversations(data || []);
+      
+      // Mark admin messages as read when viewing conversations
+      await supabase.rpc('mark_messages_as_read', {
+        p_cart_item_id: cartItemId,
+        p_reader_type: 'admin'
+      });
     } catch (error) {
       console.error('Error in loadConversations:', error);
     }

@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { useAdmin } from './useAdmin';
 
 export const useAdminMessages = () => {
   const { user, isAuthenticated } = useAuth();
+  const { isAdmin } = useAdmin();
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -15,36 +17,52 @@ export const useAdminMessages = () => {
 
     setLoading(true);
     try {
-      // Get user's cart items
-      const { data: cartItems, error: cartError } = await supabase
-        .from('cart')
-        .select('id')
-        .eq('user_id', user.id);
+      if (isAdmin) {
+        // Admin users: check for unread customer messages
+        const { data: unreadMessages, error: messagesError } = await supabase
+          .from('conversations')
+          .select('id')
+          .eq('sender_type', 'customer')
+          .eq('read_by_admin', false);
 
-      if (cartError) {
-        console.error('Error fetching cart items:', cartError);
-        return;
+        if (messagesError) {
+          console.error('Error checking customer messages:', messagesError);
+          return;
+        }
+
+        setHasUnreadMessages(unreadMessages && unreadMessages.length > 0);
+      } else {
+        // Regular users: check for unread admin messages
+        const { data: cartItems, error: cartError } = await supabase
+          .from('cart')
+          .select('id')
+          .eq('user_id', user.id);
+
+        if (cartError) {
+          console.error('Error fetching cart items:', cartError);
+          return;
+        }
+
+        if (!cartItems || cartItems.length === 0) {
+          setHasUnreadMessages(false);
+          return;
+        }
+
+        const cartItemIds = cartItems.map(item => item.id);
+        const { data: adminMessages, error: messagesError } = await supabase
+          .from('conversations')
+          .select('id')
+          .in('cart_item_id', cartItemIds)
+          .eq('sender_type', 'admin')
+          .eq('read_by_customer', false);
+
+        if (messagesError) {
+          console.error('Error checking admin messages:', messagesError);
+          return;
+        }
+
+        setHasUnreadMessages(adminMessages && adminMessages.length > 0);
       }
-
-      if (!cartItems || cartItems.length === 0) {
-        setHasUnreadMessages(false);
-        return;
-      }
-
-      // Check for admin messages in conversations
-      const cartItemIds = cartItems.map(item => item.id);
-      const { data: adminMessages, error: messagesError } = await supabase
-        .from('conversations')
-        .select('id')
-        .in('cart_item_id', cartItemIds)
-        .eq('sender_type', 'admin');
-
-      if (messagesError) {
-        console.error('Error checking admin messages:', messagesError);
-        return;
-      }
-
-      setHasUnreadMessages(adminMessages && adminMessages.length > 0);
     } catch (error) {
       console.error('Error in checkForUnreadMessages:', error);
     } finally {
@@ -52,11 +70,33 @@ export const useAdminMessages = () => {
     }
   };
 
+  const markMessagesAsRead = async (cartItemId: string) => {
+    if (!user || !isAuthenticated) return;
+
+    try {
+      const readerType = isAdmin ? 'admin' : 'customer';
+      const { error } = await supabase.rpc('mark_messages_as_read', {
+        p_cart_item_id: cartItemId,
+        p_reader_type: readerType
+      });
+
+      if (error) {
+        console.error('Error marking messages as read:', error);
+        return;
+      }
+
+      // Refresh the unread status
+      await checkForUnreadMessages();
+    } catch (error) {
+      console.error('Error in markMessagesAsRead:', error);
+    }
+  };
+
   useEffect(() => {
     checkForUnreadMessages();
-  }, [user, isAuthenticated]);
+  }, [user, isAuthenticated, isAdmin]);
 
-  // Set up real-time subscription for new admin messages
+  // Set up real-time subscription for new messages
   useEffect(() => {
     if (!user) return;
 
@@ -70,8 +110,20 @@ export const useAdminMessages = () => {
           table: 'conversations',
         },
         (payload: any) => {
-          // Check if it's an admin message for this user's cart items
-          if (payload.new?.sender_type === 'admin') {
+          checkForUnreadMessages();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'conversations',
+        },
+        (payload: any) => {
+          // Check if read status changed
+          if (payload.new?.read_by_admin !== payload.old?.read_by_admin || 
+              payload.new?.read_by_customer !== payload.old?.read_by_customer) {
             checkForUnreadMessages();
           }
         }
@@ -87,5 +139,6 @@ export const useAdminMessages = () => {
     hasUnreadMessages,
     loading,
     refreshMessages: checkForUnreadMessages,
+    markMessagesAsRead,
   };
 };

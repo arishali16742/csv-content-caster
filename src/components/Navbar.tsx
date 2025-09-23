@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Menu, X, User, LogOut, ShoppingCart, Activity, MessageCircle, Calendar } from 'lucide-react';
+import { Menu, X, User, LogOut, ShoppingCart, Activity, MessageCircle, Calendar, Bell } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAdmin } from '@/hooks/useAdmin';
 import { useCart } from '@/hooks/useCart';
 import { useBookedCount } from '@/hooks/useBookedCount';
 import { useAdminMessages } from '@/hooks/useAdminMessages';
+import { useAdminNotifications } from '@/hooks/useAdminNotifications';
 import { Button } from '@/components/ui/button';
 import LoginModal from './LoginModal';
 
@@ -21,6 +22,7 @@ const Navbar = () => {
   const { cartCount } = useCart();
   const { bookedCount } = useBookedCount();
   const { hasUnreadMessages } = useAdminMessages();
+  const { unreadCount: adminNotificationCount } = useAdminNotifications();
   const isHomePage = location.pathname === '/';
 
   useEffect(() => {
@@ -187,9 +189,17 @@ const Navbar = () => {
                   <button onClick={() => handleNavigation('/dashboard')} className={getLinkClasses()}>
                     Dashboard
                   </button>
-                  <button onClick={() => handleNavigation('/user-activity')} className={getLinkClasses()}>
+                  <button onClick={() => handleNavigation('/user-activity')} className={`${getLinkClasses()} relative`}>
                     <Activity className="h-5 w-5" />
                   </button>
+                  {adminNotificationCount > 0 && (
+                    <button onClick={() => handleNavigation('/dashboard')} className={`${getLinkClasses()} relative`}>
+                      <Bell className="h-5 w-5" />
+                      <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+                        {adminNotificationCount > 99 ? '99+' : adminNotificationCount}
+                      </span>
+                    </button>
+                  )}
                 </>
               )}
               

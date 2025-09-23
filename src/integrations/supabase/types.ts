@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_notifications: {
+        Row: {
+          cart_item_id: string | null
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string | null
+          notification_type: string
+          updated_at: string
+          user_email: string | null
+        }
+        Insert: {
+          cart_item_id?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string | null
+          notification_type: string
+          updated_at?: string
+          user_email?: string | null
+        }
+        Update: {
+          cart_item_id?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string | null
+          notification_type?: string
+          updated_at?: string
+          user_email?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_notifications_cart_item_id_fkey"
+            columns: ["cart_item_id"]
+            isOneToOne: false
+            referencedRelation: "cart"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blog: {
         Row: {
           additional_images: string[] | null
@@ -230,6 +271,9 @@ export type Database = {
           created_at: string
           id: string
           message: string
+          read_at: string | null
+          read_by_admin: boolean
+          read_by_customer: boolean
           sender_name: string | null
           sender_type: string
           updated_at: string
@@ -240,6 +284,9 @@ export type Database = {
           created_at?: string
           id?: string
           message: string
+          read_at?: string | null
+          read_by_admin?: boolean
+          read_by_customer?: boolean
           sender_name?: string | null
           sender_type: string
           updated_at?: string
@@ -250,6 +297,9 @@ export type Database = {
           created_at?: string
           id?: string
           message?: string
+          read_at?: string | null
+          read_by_admin?: boolean
+          read_by_customer?: boolean
           sender_name?: string | null
           sender_type?: string
           updated_at?: string
@@ -1797,6 +1847,10 @@ export type Database = {
       is_user_admin: {
         Args: { user_email: string }
         Returns: boolean
+      }
+      mark_messages_as_read: {
+        Args: { p_cart_item_id: string; p_reader_type: string }
+        Returns: undefined
       }
     }
     Enums: {
