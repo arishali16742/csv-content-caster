@@ -90,7 +90,7 @@ const Hero = () => {
       <div className="absolute inset-0 bg-black/40"></div>
 
       <div className="relative z-10 max-w-7xl mx-auto text-center text-white flex-grow flex flex-col justify-center w-full">
-        <div className="mb-8 md:mb-16 px-2 md:px-[10px] pt-[80px] md:pt-[126px] pb-0">
+        <header className="mb-8 md:mb-16 px-2 md:px-[10px] pt-[80px] md:pt-[126px] pb-0">
           <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-6 leading-tight">
             Travel <span className="text-purple-400">Luxuriously</span>,
             <br />
@@ -293,14 +293,15 @@ const Hero = () => {
                   key={destination.id} 
                   onClick={() => handleDestinationClick(destination.name)} 
                   className="bg-white/20 backdrop-blur-sm text-white px-3 md:px-4 py-1.5 md:py-2 rounded-full hover:bg-white/30 transition-all duration-300 font-medium flex items-center gap-1 md:gap-2 border border-white/30 text-sm md:text-base"
+                  aria-label={`Explore ${destination.name} travel packages`}
                 >
-                  <span>{destination.emoji}</span>
+                  <span role="img" aria-label={destination.name}>{destination.emoji}</span>
                   <span>{destination.name}</span>
                 </button>
               ))}
             </div>
           )}
-        </div>
+        </header>
       </div>
 
       {/* Animated Mouse Scroll Indicator */}
@@ -316,7 +317,7 @@ const Hero = () => {
             ease: "easeInOut"
           }}
         >
-          <div className="relative w-6 h-10 md:w-8 md:h-12 rounded-2xl border-2 border-white flex justify-center p-1">
+          <div className="relative w-6 h-10 md:w-8 md:h-12 rounded-2xl border-2 border-white flex justify-center p-1" aria-label="Scroll down indicator">
             <motion.div
               className="w-0.5 h-1.5 md:w-1 md:h-2 bg-white rounded-full"
               animate={{

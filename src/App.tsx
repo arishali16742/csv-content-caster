@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { HelmetProvider } from 'react-helmet-async';
 import Index from "./pages/Index";
 import MobileDetector from "./components/MobileDetector";
 import Packages from "./pages/Packages";
@@ -24,29 +25,31 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <MobileDetector />
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/packages" element={<Packages />} />
-          <Route path="/package/:id" element={<PackageDetail />} />
-          <Route path="/flights" element={<Flights />} />
-          <Route path="/hotels" element={<Hotels />} />
-          <Route path="/blog" element={<Blog />} />
-          <Route path="/blog/:id" element={<BlogPost />} />
-          <Route path="/price-comparison" element={<PriceComparison />} />
-          <Route path="/auth" element={<Auth />} />
-           <Route path="/dashboard" element={<Dashboard />} />
-           <Route path="/cart" element={<Cart />} />
-           <Route path="/booked" element={<Booked />} />
-           <Route path="/user-activity" element={<UserActivity />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <HelmetProvider>
+      <TooltipProvider>
+        <MobileDetector />
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/packages" element={<Packages />} />
+            <Route path="/package/:id" element={<PackageDetail />} />
+            <Route path="/flights" element={<Flights />} />
+            <Route path="/hotels" element={<Hotels />} />
+            <Route path="/blog" element={<Blog />} />
+            <Route path="/blog/:id" element={<BlogPost />} />
+            <Route path="/price-comparison" element={<PriceComparison />} />
+            <Route path="/auth" element={<Auth />} />
+             <Route path="/dashboard" element={<Dashboard />} />
+             <Route path="/cart" element={<Cart />} />
+             <Route path="/booked" element={<Booked />} />
+             <Route path="/user-activity" element={<UserActivity />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </HelmetProvider>
   </QueryClientProvider>
 );
 
