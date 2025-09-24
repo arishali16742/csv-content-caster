@@ -241,13 +241,22 @@ const Cart = () => {
 
       if (error) throw error;
 
-      // Mark admin messages as read when customer sends a message (customer has seen the conversation)
-      await supabase.rpc('mark_messages_as_read', {
-        p_cart_item_id: selectedPackageForComments,
-        p_reader_type: 'customer'
-      });
-
       setComments(''); // Clear input after successful save
+
+      // Mark admin messages as read when customer sends a message (customer has seen the conversation)
+      try {
+        await supabase.rpc('mark_messages_as_read', {
+          p_cart_item_id: selectedPackageForComments,
+          p_reader_type: 'customer'
+        });
+        
+        // Force refresh of unread messages count after a short delay
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('refreshMessageCount'));
+        }, 500);
+      } catch (markError) {
+        console.error('Error marking admin messages as read:', markError);
+      }
 
       toast({
         title: "Message Sent",

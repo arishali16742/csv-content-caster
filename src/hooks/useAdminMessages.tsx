@@ -106,6 +106,17 @@ export const useAdminMessages = () => {
 
   useEffect(() => {
     checkForUnreadMessages();
+    
+    // Listen for forced message count refresh
+    const handleForceRefresh = () => {
+      checkForUnreadMessages();
+    };
+    
+    window.addEventListener('refreshMessageCount', handleForceRefresh);
+    
+    return () => {
+      window.removeEventListener('refreshMessageCount', handleForceRefresh);
+    };
   }, [user, isAuthenticated, isAdmin]);
 
   // Set up real-time subscription for new messages
