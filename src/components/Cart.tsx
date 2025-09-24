@@ -241,6 +241,12 @@ const Cart = () => {
 
       if (error) throw error;
 
+      // Mark admin messages as read when customer sends a message (customer has seen the conversation)
+      await supabase.rpc('mark_messages_as_read', {
+        p_cart_item_id: selectedPackageForComments,
+        p_reader_type: 'customer'
+      });
+
       setComments(''); // Clear input after successful save
 
       toast({

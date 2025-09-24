@@ -213,27 +213,8 @@ const CartReviewManagement = () => {
       }
       setConversations(data || []);
       
-      // Mark admin messages as read when viewing conversations
-      await supabase.rpc('mark_messages_as_read', {
-        p_cart_item_id: cartItemId,
-        p_reader_type: 'admin'
-      });
-      
-      // Also mark related admin notifications as read when viewing chat
-      try {
-        const { error: notifError } = await supabase
-          .from('admin_notifications')
-          .update({ is_read: true })
-          .eq('cart_item_id', cartItemId)
-          .eq('notification_type', 'new_message')
-          .eq('is_read', false);
-        
-        if (notifError) {
-          console.error('Error marking message notifications as read:', notifError);
-        }
-      } catch (error) {
-        console.error('Error in marking message notifications as read:', error);
-      }
+      // Do NOT mark messages as read just by viewing - only when admin replies
+      // This will be handled in the handleSendAdminResponse function
     } catch (error) {
       console.error('Error in loadConversations:', error);
     }
@@ -313,19 +294,20 @@ const CartReviewManagement = () => {
       setDiscountPercent('');
       await loadConversations(booking.id);
       
-      // Mark related admin notifications as read when viewing a booking
+      // Only mark non-message admin notifications as read when viewing a booking
       try {
         const { error } = await supabase
           .from('admin_notifications')
           .update({ is_read: true })
           .eq('cart_item_id', id)
+          .neq('notification_type', 'new_message') // Don't mark message notifications as read
           .eq('is_read', false);
         
         if (error) {
-          console.error('Error marking notifications as read:', error);
+          console.error('Error marking non-message notifications as read:', error);
         }
       } catch (error) {
-        console.error('Error in marking notifications as read:', error);
+        console.error('Error in marking non-message notifications as read:', error);
       }
     } else {
       // Fallback to search if not found in the list
@@ -413,6 +395,28 @@ const CartReviewManagement = () => {
         });
 
       if (error) throw error;
+
+      // Mark customer messages as read ONLY when admin replies (not just views)
+      await supabase.rpc('mark_messages_as_read', {
+        p_cart_item_id: cartItem.id,
+        p_reader_type: 'admin'
+      });
+      
+      // Mark related admin notifications as read when admin replies
+      try {
+        const { error: notifError } = await supabase
+          .from('admin_notifications')
+          .update({ is_read: true })
+          .eq('cart_item_id', cartItem.id)
+          .eq('notification_type', 'new_message')
+          .eq('is_read', false);
+        
+        if (notifError) {
+          console.error('Error marking message notifications as read:', notifError);
+        }
+      } catch (error) {
+        console.error('Error in marking message notifications as read:', error);
+      }
 
       setAdminResponse('');
       toast({
