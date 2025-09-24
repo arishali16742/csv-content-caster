@@ -117,6 +117,18 @@ export const useAdminNotifications = () => {
           setUnreadCount(prev => prev + 1);
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'admin_notifications',
+        },
+        (payload: any) => {
+          // Refresh notifications when any notification is updated (marked as read)
+          fetchNotifications();
+        }
+      )
       .subscribe();
 
     return () => {

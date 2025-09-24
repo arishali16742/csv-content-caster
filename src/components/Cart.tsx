@@ -163,6 +163,18 @@ const Cart = () => {
       });
 
       setConversations(groupedConversations);
+      
+      // Mark admin messages as read for all cart items when viewing conversations
+      for (const cartItemId of cartItemIds) {
+        try {
+          await supabase.rpc('mark_messages_as_read', {
+            p_cart_item_id: cartItemId,
+            p_reader_type: 'customer'
+          });
+        } catch (error) {
+          console.error('Error marking messages as read for cart item:', cartItemId, error);
+        }
+      }
     } catch (error) {
       console.error('Error in loadConversations:', error);
     }

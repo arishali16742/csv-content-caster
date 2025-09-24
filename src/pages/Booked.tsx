@@ -228,6 +228,16 @@ const Booked = () => {
         ...prev,
         [cartItemId]: data || []
       }));
+      
+      // Mark admin messages as read when customer views conversations
+      try {
+        await supabase.rpc('mark_messages_as_read', {
+          p_cart_item_id: cartItemId,
+          p_reader_type: 'customer'
+        });
+      } catch (error) {
+        console.error('Error marking messages as read:', error);
+      }
     } catch (error) {
       console.error('Error in fetchConversations:', error);
     }

@@ -218,6 +218,22 @@ const CartReviewManagement = () => {
         p_cart_item_id: cartItemId,
         p_reader_type: 'admin'
       });
+      
+      // Also mark related admin notifications as read when viewing chat
+      try {
+        const { error: notifError } = await supabase
+          .from('admin_notifications')
+          .update({ is_read: true })
+          .eq('cart_item_id', cartItemId)
+          .eq('notification_type', 'new_message')
+          .eq('is_read', false);
+        
+        if (notifError) {
+          console.error('Error marking message notifications as read:', notifError);
+        }
+      } catch (error) {
+        console.error('Error in marking message notifications as read:', error);
+      }
     } catch (error) {
       console.error('Error in loadConversations:', error);
     }
@@ -296,6 +312,21 @@ const CartReviewManagement = () => {
       setCartItem(booking);
       setDiscountPercent('');
       await loadConversations(booking.id);
+      
+      // Mark related admin notifications as read when viewing a booking
+      try {
+        const { error } = await supabase
+          .from('admin_notifications')
+          .update({ is_read: true })
+          .eq('cart_item_id', id)
+          .eq('is_read', false);
+        
+        if (error) {
+          console.error('Error marking notifications as read:', error);
+        }
+      } catch (error) {
+        console.error('Error in marking notifications as read:', error);
+      }
     } else {
       // Fallback to search if not found in the list
       handleSearch(id);

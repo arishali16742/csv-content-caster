@@ -133,11 +133,8 @@ export const useAdminMessages = () => {
           table: 'conversations',
         },
         (payload: any) => {
-          // Check if read status changed
-          if (payload.new?.read_by_admin !== payload.old?.read_by_admin || 
-              payload.new?.read_by_customer !== payload.old?.read_by_customer) {
-            checkForUnreadMessages();
-          }
+          // Always refresh when conversations are updated (read status changed)
+          checkForUnreadMessages();
         }
       )
       .subscribe();
