@@ -213,6 +213,13 @@ const CartReviewManagement = () => {
       }
       setConversations(data || []);
       
+      // Auto-scroll to bottom after conversations are loaded
+      setTimeout(() => {
+        if (chatContainerRef.current) {
+          chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+      }, 100);
+      
       // Do NOT mark messages as read just by viewing - only when admin replies
       // This will be handled in the handleSendAdminResponse function
     } catch (error) {
@@ -426,6 +433,11 @@ const CartReviewManagement = () => {
 
       // Reload conversations to show the new message
       await loadConversations(cartItem.id);
+      
+      // Force refresh of unread messages count after a short delay
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('refreshMessageCount'));
+      }, 500);
     } catch (error: any) {
       toast({
         title: 'Send Failed',

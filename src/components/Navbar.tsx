@@ -209,13 +209,17 @@ const Navbar = () => {
                        </span>
                      )}
                    </button>
-                    {hasUnreadMessages && (
-                      <button onClick={() => {
-                        handleNavigation('/dashboard');
-                        setTimeout(() => {
-                          window.dispatchEvent(new CustomEvent('setDashboardTab', { detail: 'cart-review' }));
-                        }, 100);
-                      }} className={`${getLinkClasses()} relative`}>
+                     {hasUnreadMessages && (
+                       <button onClick={() => {
+                         if (isAdmin) {
+                           handleNavigation('/dashboard');
+                           setTimeout(() => {
+                             window.dispatchEvent(new CustomEvent('setDashboardTab', { detail: 'cart-review' }));
+                           }, 100);
+                         } else {
+                           handleNavigation('/cart');
+                         }
+                       }} className={`${getLinkClasses()} relative`}>
                         <MessageCircle className="h-5 w-5" />
                         {unreadChatCount > 0 && (
                           <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
@@ -295,15 +299,19 @@ const Navbar = () => {
                        </span>
                      )}
                    </button>
-                    {hasUnreadMessages && (
-                      <button 
-                        onClick={() => {
-                          handleNavigation('/dashboard');
-                          setTimeout(() => {
-                            window.dispatchEvent(new CustomEvent('setDashboardTab', { detail: 'cart-review' }));
-                          }, 100);
-                        }} 
-                        className="text-gray-700 hover:text-travel-primary relative"
+                     {hasUnreadMessages && (
+                       <button 
+                         onClick={() => {
+                           if (isAdmin) {
+                             handleNavigation('/dashboard');
+                             setTimeout(() => {
+                               window.dispatchEvent(new CustomEvent('setDashboardTab', { detail: 'cart-review' }));
+                             }, 100);
+                           } else {
+                             handleNavigation('/cart');
+                           }
+                         }} 
+                         className="text-gray-700 hover:text-travel-primary relative"
                       >
                         <MessageCircle className="h-6 w-6" />
                         {unreadChatCount > 0 && (
