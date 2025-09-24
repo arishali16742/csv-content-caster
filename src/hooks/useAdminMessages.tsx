@@ -148,6 +148,25 @@ export const useAdminMessages = () => {
           checkForUnreadMessages();
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'admin_notifications',
+        },
+        (payload: any) => {
+          // Extra safety: when a new customer message notification arrives, refresh counts
+          try {
+            const notif = payload?.new as { notification_type?: string } | undefined;
+            if (!notif || notif.notification_type === 'new_message') {
+              checkForUnreadMessages();
+            }
+          } catch (e) {
+            checkForUnreadMessages();
+          }
+        }
+      )
       .subscribe();
 
     return () => {
