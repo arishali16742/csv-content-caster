@@ -399,17 +399,16 @@ const Cart = () => {
   }, 0);
 };
 
-  // Calculate original price without any discounts
+  // Calculate original price without any discounts - directly from packages table
   const getOriginalPrice = () => {
   return cartItems.reduce((total, item) => {
     if (!item.packages) return total;
     
+    // Use the direct package price from the packages table (this is the total package cost)
     const packagePrice = parseInt(item.packages.price.replace(/[₹,]/g, '') || '0');
-    const members = item.members || 1;
-    const days = item.days;
     const visaCost = item.visa_cost || 0;
     
-    return total + (packagePrice* members) + visaCost;
+    return total + packagePrice + visaCost;
   }, 0);
 };
 
@@ -435,12 +434,13 @@ const Cart = () => {
     loadCartItems(); // Reload to show updated booking status
   };
 
-  // Calculate original price for a single cart item
+  // Calculate original price for a single cart item - directly from packages table
   const getItemOriginalPrice = (item: CartItem) => {
   if (!item.packages) return 0;
   
-  // Use the actual price field from the packages table (this is the total package price)
-  const packagePrice = parseInt(item.packages.price.replace(/[₹,]/g, ''));
+  // Use price_before_admin_discount if available (this represents original price before admin discount)
+  // Otherwise use the packages table price (total package cost)
+  const packagePrice = item.price_before_admin_discount || parseInt(item.packages.price.replace(/[₹,]/g, ''));
   const visaCost = item.visa_cost || 0;
   
   return packagePrice + visaCost;
@@ -838,25 +838,44 @@ useEffect(() => {
                                 </div>
                               </div>
                               
-                              <div className="flex items-center justify-between sm:justify-end gap-3">
-                                {hasDiscount ? (
-                                  <div className="text-right">
-                                    <div className="flex items-center gap-1.5 justify-end">
-                                      <Tag className="h-3 w-3 text-green-600" />
-                                      <p className="text-xs text-green-600 font-semibold">Discount Applied!</p>
-                                    </div>
-                                    <span className="text-sm text-gray-500 line-through">
-                                      ₹{formatIndianCurrency(itemOriginalPrice)}
-                                    </span>
-                                    <span className="text-lg md:text-xl font-bold text-travel-primary ml-2">
-                                      ₹{formatIndianCurrency(itemCurrentPrice)}
-                                    </span>
+                            <div className="flex flex-col text-right">
+                              {/* Show pricing breakdown */}
+                              {hasDiscount ? (
+                                <div>
+                                  <div className="flex items-center gap-1.5 justify-end mb-1">
+                                    <Tag className="h-3 w-3 text-green-600" />
+                                    <p className="text-xs text-green-600 font-semibold">Discounts Applied!</p>
                                   </div>
-                                ) : (
-                                  <span className="text-lg md:text-xl font-bold text-travel-primary">
+                                  
+                                  {/* Original price */}
+                                  <div className="text-sm text-gray-500 line-through">
+                                    ₹{formatIndianCurrency(itemOriginalPrice)}
+                                  </div>
+                                  
+                                  {/* Show coupon discount if applied */}
+                                  {item.applied_coupon_details && (
+                                    <div className="text-xs text-blue-600">
+                                      Coupon: {item.applied_coupon_details}
+                                    </div>
+                                  )}
+                                  
+                                  {/* Show admin discount if applied */}
+                                  {item.price_before_admin_discount && item.price_before_admin_discount > item.total_price && (
+                                    <div className="text-xs text-purple-600">
+                                      Admin Discount Applied
+                                    </div>
+                                  )}
+                                  
+                                  {/* Final discounted price */}
+                                  <div className="text-lg md:text-xl font-bold text-travel-primary">
                                     ₹{formatIndianCurrency(itemCurrentPrice)}
-                                  </span>
-                                )}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="text-lg md:text-xl font-bold text-travel-primary">
+                                  ₹{formatIndianCurrency(itemCurrentPrice)}
+                                </div>
+                              )}
                                 <Button
                                   variant="outline"
                                   size="sm"

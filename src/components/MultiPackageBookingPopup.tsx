@@ -19,6 +19,7 @@ interface CartItem {
   days: number;
   total_price: number;
   original_price?: number;
+  price_before_admin_discount?: number | null;
   members?: number;
   with_flights?: boolean;
   selected_date?: string;
@@ -73,19 +74,24 @@ const MultiPackageBookingPopup = ({
   const navigate = useNavigate();
 
   const calculateOriginalPrice = (item: CartItem): number => {
-    if (item.original_price) return item.original_price;
+    // Use price_before_admin_discount if available (original price before admin discount)
+    // Otherwise use the current total_price as baseline
+    const basePrice = item.price_before_admin_discount || item.total_price;
+    const visaCost = item.visa_cost || 0;
     
+    // If there's a coupon applied, calculate backwards to get original price
     if (item.applied_coupon_details) {
       const couponMatch = item.applied_coupon_details.match(/(\d+)%/);
       if (couponMatch) {
         const discountPercentage = parseInt(couponMatch[1], 10);
-        const discountedPrice = item.total_price + (item.visa_cost || 0);
-        const originalPrice = discountedPrice / (1 - discountPercentage / 100);
-        return Math.round(originalPrice);
+        // Coupon was applied to (package + visa), so calculate original total
+        const currentTotal = basePrice + visaCost;
+        const originalTotal = currentTotal / (1 - discountPercentage / 100);
+        return Math.round(originalTotal);
       }
     }
     
-    return item.total_price + (item.visa_cost || 0);
+    return basePrice + visaCost;
   };
 
   const getSelectedItems = () => {
@@ -469,7 +475,7 @@ const MultiPackageBookingPopup = ({
                             )}
                           </div>
                           <div className="text-right">
-                            {hasPackageCoupon ? (
+                            {hasPackageCoupon || (item.price_before_admin_discount && item.price_before_admin_discount > item.total_price) ? (
                               <div>
                                 <span className="text-sm text-gray-500 line-through block">
                                   ₹{formatIndianCurrency(originalPrice)}
@@ -477,6 +483,10 @@ const MultiPackageBookingPopup = ({
                                 <span className="text-sm font-bold text-travel-primary block">
                                   ₹{formatIndianCurrency(currentPrice)}
                                 </span>
+                                {/* Show admin discount indicator */}
+                                {item.price_before_admin_discount && item.price_before_admin_discount > item.total_price && (
+                                  <span className="text-xs text-purple-600 block">Admin Discount Applied</span>
+                                )}
                               </div>
                             ) : (
                               <span className="text-sm font-bold text-travel-primary">

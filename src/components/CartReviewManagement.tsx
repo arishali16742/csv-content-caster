@@ -644,33 +644,28 @@ const handleApplyDiscount = async () => {
   <h4 className="font-semibold text-md mb-2">Pricing Details</h4>
   <div className="text-sm space-y-1 pl-4 border-l-2">
     {(() => {
-      // Calculate original price and coupon details
+      // Get original price directly from packages table or calculated value
       let originalPrice = cartItem.total_price;
       let couponPercentage = 0;
+      let couponDiscountAmount = 0;
       let priceAfterCoupon = cartItem.total_price;
       
+      // If we have price_before_admin_discount, that's our starting point
+      if (cartItem.price_before_admin_discount) {
+        originalPrice = cartItem.price_before_admin_discount;
+        priceAfterCoupon = cartItem.price_before_admin_discount;
+      }
+      
+      // If coupon is applied, calculate the discount
       if (cartItem.applied_coupon_details) {
         const couponMatch = cartItem.applied_coupon_details.match(/(\d+)%/);
         if (couponMatch) {
           couponPercentage = parseInt(couponMatch[1]);
-          // Calculate original price before any discounts
-          if (cartItem.price_before_admin_discount) {
-            // Has admin discount: final_price = (original_price * (1 - coupon/100)) * (1 - admin_discount/100)
-            // So original_price = final_price / ((1 - coupon/100) * (1 - admin_discount/100))
-            const adminDiscountAmount = cartItem.price_before_admin_discount - cartItem.total_price;
-            const adminDiscountPercent = (adminDiscountAmount / cartItem.price_before_admin_discount) * 100;
-            originalPrice = cartItem.total_price / ((1 - couponPercentage / 100) * (1 - adminDiscountPercent / 100));
-            priceAfterCoupon = originalPrice * (1 - couponPercentage / 100);
-          } else {
-            // No admin discount: final_price = original_price * (1 - coupon/100)
-            originalPrice = cartItem.total_price / (1 - couponPercentage / 100);
-            priceAfterCoupon = cartItem.total_price;
-          }
+          // Coupon is applied to original price (package + visa)
+          couponDiscountAmount = ((originalPrice + (cartItem.visa_cost || 0)) * couponPercentage) / 100;
+          // After coupon, we reduce the package price portion only
+          priceAfterCoupon = originalPrice - (couponDiscountAmount * originalPrice / (originalPrice + (cartItem.visa_cost || 0)));
         }
-      } else if (cartItem.price_before_admin_discount) {
-        // No coupon but has admin discount
-        originalPrice = cartItem.price_before_admin_discount;
-        priceAfterCoupon = cartItem.price_before_admin_discount;
       }
 
       const finalPrice = cartItem.total_price + (cartItem.visa_cost || 0);
@@ -680,28 +675,31 @@ const handleApplyDiscount = async () => {
       const adminDiscountAmount = hasAdminDiscount ? 
         priceAfterCoupon - cartItem.total_price : 0;
       
-      const adminDiscountPercent = hasAdminDiscount ? 
-        (adminDiscountAmount / priceAfterCoupon * 100) : 0;
+      const adminDiscountPercent = hasAdminDiscount && cartItem.admin_discount ? 
+        cartItem.admin_discount : 0;
 
       return (
         <>
-          <p>Original Price: ₹{Math.round(originalPrice).toLocaleString()}</p>
+          <p>Original Price: ₹{Math.round(originalPrice + (cartItem.visa_cost || 0)).toLocaleString()}</p>
           
           {cartItem.applied_coupon_details && couponPercentage > 0 && (
             <>
               <p>
                 <strong>Coupon: </strong>
                 <span className="font-bold text-blue-600">{cartItem.applied_coupon_details}</span>
-                <span> (-₹{Math.round(originalPrice * couponPercentage / 100).toLocaleString()})</span>
+                <span> (-₹{Math.round(couponDiscountAmount).toLocaleString()})</span>
               </p>
-              <p>Price after coupon: ₹{Math.round(priceAfterCoupon).toLocaleString()}</p>
+              <p>Price after coupon: ₹{Math.round(priceAfterCoupon + (cartItem.visa_cost || 0)).toLocaleString()}</p>
             </>
           )}
           
-        
-{hasAdminDiscount && cartItem.admin_discount && (
-  <p>Admin Discount: {cartItem.admin_discount}% (-₹{Math.round(adminDiscountAmount).toLocaleString()})</p>
-)}
+          {hasAdminDiscount && adminDiscountPercent > 0 && (
+            <p>
+              <strong>Admin Discount: </strong>
+              <span className="font-bold text-purple-600">{adminDiscountPercent}%</span>
+              <span> (-₹{Math.round(adminDiscountAmount).toLocaleString()})</span>
+            </p>
+          )}
           
           {cartItem.with_visa && <p>Visa Cost: ₹{(cartItem.visa_cost || 0).toLocaleString()}</p>}
           
