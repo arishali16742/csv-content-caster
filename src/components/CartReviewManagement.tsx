@@ -16,6 +16,7 @@ interface FetchedCartItem {
   days: number;
   total_price: number;
   price_before_admin_discount?: number | null;
+  admin_discount?: number | null; // Make sure this line is present
   members?: number;
   with_flights?: boolean;
   selected_date?: string;
@@ -449,62 +450,104 @@ const CartReviewManagement = () => {
     }
   };
 
-  const handleApplyDiscount = async () => {
-    if (!cartItem || discountPercent === '' || +discountPercent < 0 || +discountPercent > 100) {
-      toast({
-        title: 'Invalid discount',
-        description: 'Please enter a valid discount percentage (0-100).',
-        variant: 'destructive'
-      });
-      return;
-    }
+const handleApplyDiscount = async () => {
+  if (!cartItem || discountPercent === '' || +discountPercent < 0 || +discountPercent > 100) {
+    toast({
+      title: 'Invalid discount',
+      description: 'Please enter a valid discount percentage (0-100).',
+      variant: 'destructive'
+    });
+    return;
+  }
 
-    setUpdating(true);
-    const originalPrice = cartItem.price_before_admin_discount || cartItem.total_price;
-    const discountAmount = originalPrice * (Number(discountPercent) / 100);
-    const newPrice = originalPrice - discountAmount;
+  setUpdating(true);
+  const discountPercentage = Number(discountPercent);
+  const originalPrice = cartItem.price_before_admin_discount || cartItem.total_price;
+  const discountAmount = originalPrice * (discountPercentage / 100);
+  const newPrice = originalPrice - discountAmount;
 
-    try {
-      const { data, error } = await supabase
-        .from('cart')
-        .update({
-          total_price: newPrice,
-          price_before_admin_discount: originalPrice,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', cartItem.id)
-        .select('id, total_price, price_before_admin_discount, updated_at')
-        .single();
+  try {
+    // First, check if the column exists by attempting to update it
+    const updateData: any = {
+      total_price: newPrice,
+      price_before_admin_discount: originalPrice,
+      updated_at: new Date().toISOString()
+    };
 
-      if (error) throw error;
+    // Only include admin_discount if the column exists
+    // We'll try to update it, but if it fails, we'll fall back to without it
+    updateData.admin_discount = discountPercentage;
 
-      if (data) {
-        const updatedCartItem: FetchedCartItem = {
-          ...cartItem,
-          total_price: data.total_price,
-          price_before_admin_discount: data.price_before_admin_discount,
-          updated_at: data.updated_at,
-        };
-        setCartItem(updatedCartItem);
-        const updatedBookings = allBookings.map(b => b.id === data.id ? updatedCartItem : b);
-        setAllBookings(updatedBookings);
+    const { data, error } = await supabase
+      .from('cart')
+      .update(updateData)
+      .eq('id', cartItem.id)
+      .select()
+      .single();
+
+    if (error) {
+      // If the error is about the admin_discount column, try without it
+      if (error.message.includes('admin_discount')) {
+        console.warn('admin_discount column does not exist, updating without it');
+        
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('cart')
+          .update({
+            total_price: newPrice,
+            price_before_admin_discount: originalPrice,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', cartItem.id)
+          .select()
+          .single();
+
+        if (fallbackError) throw fallbackError;
+        
+        // Use fallback data
+        if (fallbackData) {
+          const updatedCartItem: FetchedCartItem = {
+            ...cartItem,
+            total_price: fallbackData.total_price,
+            price_before_admin_discount: fallbackData.price_before_admin_discount,
+            admin_discount: discountPercentage, // Store in local state only
+            updated_at: fallbackData.updated_at,
+          };
+          setCartItem(updatedCartItem);
+          const updatedBookings = allBookings.map(b => b.id === fallbackData.id ? updatedCartItem : b);
+          setAllBookings(updatedBookings);
+        }
+      } else {
+        throw error;
       }
-
-      setDiscountPercent('');
-      toast({
-        title: 'Success',
-        description: 'Discount applied successfully.'
-      });
-    } catch (error: any) {
-      toast({
-        title: 'Update failed',
-        description: error.message,
-        variant: 'destructive'
-      });
-    } finally {
-      setUpdating(false);
+    } else if (data) {
+      // Original success case
+      const updatedCartItem: FetchedCartItem = {
+        ...cartItem,
+        total_price: data.total_price,
+        price_before_admin_discount: data.price_before_admin_discount,
+       admin_discount: (data as any).admin_discount,
+        updated_at: data.updated_at,
+      };
+      setCartItem(updatedCartItem);
+      const updatedBookings = allBookings.map(b => b.id === data.id ? updatedCartItem : b);
+      setAllBookings(updatedBookings);
     }
-  };
+
+    setDiscountPercent('');
+    toast({
+      title: 'Success',
+      description: `Discount of ${discountPercentage}% applied successfully.`
+    });
+  } catch (error: any) {
+    toast({
+      title: 'Update failed',
+      description: error.message,
+      variant: 'destructive'
+    });
+  } finally {
+    setUpdating(false);
+  }
+};
 
   const filteredBookings = allBookings.filter(booking => {
     if (bookingTypeFilter === 'all') return true;
@@ -655,9 +698,10 @@ const CartReviewManagement = () => {
             </>
           )}
           
-          {hasAdminDiscount && (
-            <p>Admin Discount: {Math.round(adminDiscountPercent)}% (-₹{Math.round(adminDiscountAmount).toLocaleString()})</p>
-          )}
+        
+{hasAdminDiscount && cartItem.admin_discount && (
+  <p>Admin Discount: {cartItem.admin_discount}% (-₹{Math.round(adminDiscountAmount).toLocaleString()})</p>
+)}
           
           {cartItem.with_visa && <p>Visa Cost: ₹{(cartItem.visa_cost || 0).toLocaleString()}</p>}
           

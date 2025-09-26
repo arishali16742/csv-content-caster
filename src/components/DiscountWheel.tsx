@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Gift, X, Copy, Check } from 'lucide-react';
@@ -35,7 +34,7 @@ const DiscountWheel = () => {
 
   useEffect(() => {
     loadOffers();
-    checkDailySpinStatus();
+    // checkDailySpinStatus();
   }, []);
 
   const loadOffers = async () => {
@@ -57,11 +56,11 @@ const DiscountWheel = () => {
     }
   };
 
-  const checkDailySpinStatus = () => {
-    const today = new Date().toDateString();
-    const lastSpin = localStorage.getItem('lastWheelSpin');
-    setHasSpunToday(lastSpin === today);
-  };
+  // const checkDailySpinStatus = () => {
+  //   const today = new Date().toDateString();
+  //   const lastSpin = localStorage.getItem('lastWheelSpin');
+  //   setHasSpunToday(lastSpin === today);
+  // };
 
   const generateCouponCode = () => {
     const prefix = 'TRAVELGENZ';
@@ -128,10 +127,10 @@ const DiscountWheel = () => {
       setGeneratedCoupon(coupon);
       setShowCoupon(true);
       
-      // Mark as spun today
-      const today = new Date().toDateString();
-      localStorage.setItem('lastWheelSpin', today);
-      setHasSpunToday(true);
+      // // Mark as spun today
+      // const today = new Date().toDateString();
+      // localStorage.setItem('lastWheelSpin', today);
+      // setHasSpunToday(true);
 
       toast({
         title: "Congratulations! 🎉",
@@ -155,69 +154,43 @@ const DiscountWheel = () => {
   const handleSaveCoupon = async () => {
     if (!user || !generatedCoupon) return;
 
+    // Copy coupon code to clipboard before redirecting
+    copyCouponCode();
+
     setShowCoupon(false);
 
     try {
+      // Check if cart has items
       const { data: cartItems, error: cartError } = await supabase
         .from('cart')
-        .select('id, total_price')
+        .select('id')
         .eq('user_id', user.id);
 
-      if (cartError || !cartItems || cartItems.length === 0) {
-        toast({ title: 'Coupon Saved', description: 'Your coupon is saved to your account for future use.' });
-        return;
-      }
-      
-      const { data: existingDiscountedItems } = await supabase
-        .from('cart')
-        .select('id')
-        .eq('user_id', user.id)
-        .not('price_before_admin_discount', 'is', null);
-
-      if (existingDiscountedItems && existingDiscountedItems.length > 0) {
-        toast({ title: 'Coupon Saved', description: 'A discount is already applied to your cart. This coupon has been saved for later use.' });
+      if (cartError) {
+        console.error('Error checking cart:', cartError);
+        // Redirect to packages page as fallback
+        window.location.href = '/packages';
         return;
       }
 
-      const discountMatch = generatedCoupon.discount.match(/(\d+)\s*%/);
-      if (!discountMatch) {
-        toast({ title: 'Error', description: 'Could not apply coupon discount.', variant: 'destructive' });
-        return;
-      }
-      const discountPercentage = parseInt(discountMatch[1], 10);
-      const cartTotal = cartItems.reduce((total, item) => total + Number(item.total_price), 0);
-      const totalDiscountValue = cartTotal * (discountPercentage / 100);
-      
-      const couponDetailsString = `${generatedCoupon.code} (${generatedCoupon.discount})`;
-
-      const updates = cartItems.map(item => {
-        const itemPrice = Number(item.total_price);
-        const itemDiscount = (itemPrice / cartTotal) * totalDiscountValue;
-        const newPrice = itemPrice - itemDiscount;
-
-        return supabase.from('cart').update({
-          total_price: newPrice,
-          price_before_admin_discount: itemPrice,
-          applied_coupon_details: couponDetailsString
-        }).eq('id', item.id);
-      });
-
-      await Promise.all(updates);
-      
-      const { data: couponInDb } = await supabase.from('user_coupons').select('id').eq('coupon_code', generatedCoupon.code).single();
-      if (couponInDb) {
-        await supabase.from('user_coupons').update({
-          used: true,
-          used_at: new Date().toISOString()
-        }).eq('id', couponInDb.id);
+      // Redirect based on cart content
+      if (cartItems && cartItems.length > 0) {
+        // Redirect to cart page
+        window.location.href = '/cart';
+      } else {
+        // Redirect to packages page
+        window.location.href = '/packages';
       }
 
-      toast({ title: 'Discount Applied!', description: `A ${generatedCoupon.discount} discount has been applied to your cart!` });
-      
-    } catch (e: any) {
-      console.error('Error applying coupon to cart:', e);
-      toast({ title: 'Error', description: 'Could not apply coupon to cart.', variant: 'destructive' });
+    } catch (error) {
+      console.error('Error checking cart:', error);
+      // Redirect to packages page as fallback
+      window.location.href = '/packages';
     }
+  };
+
+  const handleClosePopup = () => {
+    setShowCoupon(false);
   };
 
   if (offers.length === 0) return null;
@@ -348,15 +321,17 @@ const DiscountWheel = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+              onClick={handleClosePopup}
             >
               <motion.div
                 initial={{ scale: 0.5, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.5, opacity: 0 }}
                 className="bg-white rounded-2xl p-6 md:p-8 max-w-sm md:max-w-md w-full relative mx-4"
+                onClick={(e) => e.stopPropagation()}
               >
                 <button
-                  onClick={() => setShowCoupon(false)}
+                  onClick={handleClosePopup}
                   className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
                 >
                   <X className="h-6 w-6" />

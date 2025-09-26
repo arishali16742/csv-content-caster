@@ -15,6 +15,8 @@ import { format } from 'date-fns';
 import BookingPopup from './BookingPopup';
 import MultiPackageBookingPopup from './MultiPackageBookingPopup';
 import { Textarea } from './ui/textarea';
+import { Input } from './ui/input';
+import { Loader2 } from 'lucide-react';
 
 interface CartItem {
   id: string;
@@ -64,6 +66,15 @@ const Cart = () => {
   const [selectedPackageForComments, setSelectedPackageForComments] = useState<string>('');
   const [conversations, setConversations] = useState<Record<string, any[]>>({});
   const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  // Coupon state variables
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
+  const [finalPrice, setFinalPrice] = useState(0);
+  const [couponMessage, setCouponMessage] = useState({ text: '', type: 'info' });
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+  const [hasExistingCoupon, setHasExistingCoupon] = useState(false);
+  const [cartCouponDetails, setCartCouponDetails] = useState<string | null>(null);
 
   // Auto-scroll to bottom when conversations change
   useEffect(() => {
@@ -128,6 +139,10 @@ const Cart = () => {
 
       console.log('Combined cart data:', combinedData);
       setCartItems(combinedData);
+
+      // Initialize final price with total price
+      const totalPrice = combinedData.reduce((total, item) => total + item.total_price + (item.visa_cost || 0), 0);
+      setFinalPrice(totalPrice);
 
     } catch (error) {
       console.error('Error in loadCartItems:', error);
@@ -378,8 +393,25 @@ const Cart = () => {
   };
 
   const getTotalPrice = () => {
-    return cartItems.reduce((total, item) => total + item.total_price + (item.visa_cost || 0), 0);
-  };
+  return cartItems.reduce((total, item) => {
+    const itemTotal = item.total_price + (item.visa_cost || 0);
+    return total + itemTotal;
+  }, 0);
+};
+
+  // Calculate original price without any discounts
+  const getOriginalPrice = () => {
+  return cartItems.reduce((total, item) => {
+    if (!item.packages) return total;
+    
+    const packagePrice = parseInt(item.packages.price.replace(/[₹,]/g, '') || '0');
+    const members = item.members || 1;
+    const days = item.days;
+    const visaCost = item.visa_cost || 0;
+    
+    return total + (packagePrice* members) + visaCost;
+  }, 0);
+};
 
   const formatIndianCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -402,6 +434,237 @@ const Cart = () => {
   const handleBookingComplete = () => {
     loadCartItems(); // Reload to show updated booking status
   };
+
+  // Calculate original price for a single cart item
+  const getItemOriginalPrice = (item: CartItem) => {
+  if (!item.packages) return 0;
+  
+  // Use the actual price field from the packages table (this is the total package price)
+  const packagePrice = parseInt(item.packages.price.replace(/[₹,]/g, ''));
+  const visaCost = item.visa_cost || 0;
+  
+  return packagePrice + visaCost;
+};
+
+  // Coupon logic from BookingPopup - UPDATED to save to cart items
+  const handleApplyCoupon = async () => {
+    if (!couponCode) {
+      setCouponMessage({ text: 'Please enter a coupon code.', type: 'error' });
+      return;
+    }
+    if (!user) {
+      toast({ title: 'Not Logged In', description: 'Please log in to apply coupons.', variant: 'destructive' });
+      return;
+    }
+
+    setIsApplyingCoupon(true);
+    setCouponMessage({ text: '', type: 'info' });
+
+    try {
+      const { data: couponData, error } = await supabase
+        .from('user_coupons')
+        .select('*')
+        .eq('coupon_code', couponCode.trim().toUpperCase())
+        .eq('user_id', user.id)
+        .single();
+
+      if (error || !couponData) {
+        setCouponMessage({ text: 'Invalid or expired coupon code.', type: 'error' });
+        return;
+      }
+
+      if (couponData.used) {
+        setCouponMessage({ text: 'This coupon has already been used.', type: 'error' });
+        return;
+      }
+
+      if (new Date(couponData.expires_at) < new Date()) {
+        setCouponMessage({ text: 'This coupon has expired.', type: 'error' });
+        return;
+      }
+
+      const discountString = couponData.discount;
+      const percentageMatch = discountString.match(/(\d+)%/);
+      if (percentageMatch) {
+        const percentage = parseInt(percentageMatch[1], 10);
+        const totalPrice = getTotalPrice();
+        const discountAmount = (totalPrice * percentage) / 100;
+        const newFinalPrice = totalPrice - discountAmount;
+        
+        setFinalPrice(newFinalPrice);
+        setAppliedCoupon(couponData);
+        
+        // Create coupon details string like BookingPopup does
+        const couponDetails = `${couponData.offer_title} (${couponData.discount})`;
+        setCartCouponDetails(couponDetails);
+        
+        setCouponMessage({ text: `Success! ${couponData.discount} applied.`, type: 'success' });
+        
+        // Update all cart items with the coupon discount proportionally
+        await updateCartItemsWithCoupon(couponData, couponDetails, percentage);
+        
+        toast({
+          title: 'Coupon Applied!',
+          description: `You've received a ${couponData.discount} discount.`,
+        });
+      } else {
+        setCouponMessage({ text: 'This coupon is not a percentage discount and cannot be applied here.', type: 'error' });
+      }
+    } catch (e) {
+      setCouponMessage({ text: 'Error while validating coupon.', type: 'error' });
+      console.error('Coupon application error:', e);
+    } finally {
+      setIsApplyingCoupon(false);
+    }
+  };
+
+  // Function to remove applied coupon
+// Function to remove applied coupon
+const handleRemoveCoupon = async () => {
+  if (!user) return;
+
+  setIsApplyingCoupon(true);
+  
+  try {
+    // Reset all cart items to remove coupon details
+    const updates = cartItems.map(async (item) => {
+      if (!item.packages) return item;
+      
+      // Get the original package price per person per day
+      const packagePrice = parseInt(item.packages.price.replace(/[₹,]/g, '') || '0');
+      const members = item.members || 1;
+      const days = item.days;
+      
+      // Calculate original price correctly: (package price × days × members) + visa cost
+      const packageTotal = packagePrice  * members;
+      const visaCost = item.visa_cost || 0;
+      const originalTotalPrice = packageTotal + visaCost;
+      
+      // But we need to store only the package portion in total_price (without visa cost)
+      const packagePortion = packagePrice  * members;
+      
+      const { error } = await supabase
+        .from('cart')
+        .update({
+          total_price: packagePortion, // Store only package portion
+          applied_coupon_details: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', item.id);
+
+      if (error) throw error;
+
+      return {
+        ...item,
+        total_price: packagePortion, // Update local state with package portion only
+        applied_coupon_details: null
+      };
+    });
+
+    const updatedItems = await Promise.all(updates);
+    setCartItems(updatedItems);
+    
+    // Reset coupon state
+    setAppliedCoupon(null);
+    setCouponCode('');
+    setCouponMessage({ text: 'Coupon removed successfully.', type: 'success' });
+    setCartCouponDetails(null);
+    setHasExistingCoupon(false);
+    
+    // Reset final price to original total (including visa costs)
+    const totalPrice = updatedItems.reduce((total, item) => {
+      const itemTotal = item.total_price + (item.visa_cost || 0);
+      return total + itemTotal;
+    }, 0);
+    setFinalPrice(totalPrice);
+    
+    toast({
+      title: 'Coupon Removed',
+      description: 'The coupon has been removed from your cart.',
+    });
+
+    // Clear success message after 3 seconds
+    setTimeout(() => {
+      setCouponMessage({ text: '', type: 'info' });
+    }, 3000);
+    
+  } catch (error) {
+    console.error('Error removing coupon:', error);
+    setCouponMessage({ text: 'Failed to remove coupon. Please try again.', type: 'error' });
+    toast({
+      title: 'Error',
+      description: 'Failed to remove coupon',
+      variant: 'destructive',
+    });
+  } finally {
+    setIsApplyingCoupon(false);
+  }
+};
+
+  // Update all cart items with coupon discount proportionally
+  const updateCartItemsWithCoupon = async (couponData: any, couponDetails: string, percentage: number) => {
+    try {
+      const updates = cartItems.map(async (item) => {
+        const itemTotal = item.total_price + (item.visa_cost || 0);
+        const discountAmount = (itemTotal * percentage) / 100;
+        const newItemPrice = itemTotal - discountAmount;
+        
+        const { error } = await supabase
+          .from('cart')
+          .update({
+            total_price: Math.round(newItemPrice - (item.visa_cost || 0)), // Subtract visa cost to get package price only
+            applied_coupon_details: couponDetails,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', item.id);
+
+        if (error) throw error;
+
+        return {
+          ...item,
+          total_price: Math.round(newItemPrice - (item.visa_cost || 0)),
+          applied_coupon_details: couponDetails
+        };
+      });
+
+      const updatedItems = await Promise.all(updates);
+      setCartItems(updatedItems);
+      
+    } catch (error) {
+      console.error('Error updating cart items with coupon:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to apply coupon to cart items',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Reset coupon state when cart items change
+useEffect(() => {
+  const totalPrice = getTotalPrice();
+  const originalPrice = getOriginalPrice();
+  setFinalPrice(totalPrice);
+  
+  // Check if any cart item already has a coupon applied
+  const hasCoupon = cartItems.some(item => !!item.applied_coupon_details);
+  setHasExistingCoupon(hasCoupon);
+  
+  if (hasCoupon) {
+    // If cart items already have coupons, use the first one found
+    const firstCouponItem = cartItems.find(item => !!item.applied_coupon_details);
+    if (firstCouponItem) {
+      setCartCouponDetails(firstCouponItem.applied_coupon_details);
+      setCouponMessage({ text: `Coupon already applied: ${firstCouponItem.applied_coupon_details}`, type: 'info' });
+    }
+  } else {
+    // Only reset coupon state if no existing coupons
+    setAppliedCoupon(null);
+    setCouponCode('');
+    setCouponMessage({ text: '', type: 'info' });
+    setCartCouponDetails(null);
+  }
+}, [cartItems]);
 
   if (!isAuthenticated) {
     return (
@@ -466,6 +729,10 @@ const Cart = () => {
               <div className="lg:col-span-2 space-y-4 md:space-y-6">
                 {cartItems.map((item) => {
                   const packageData = item.packages;
+                  const itemOriginalPrice = getItemOriginalPrice(item);
+                  const itemCurrentPrice = item.total_price + (item.visa_cost || 0);
+                  const hasDiscount = itemOriginalPrice > itemCurrentPrice;
+                  
                   console.log('Rendering cart item:', item, 'Package data:', packageData);
                   
                   return (
@@ -563,32 +830,31 @@ const Cart = () => {
                             
                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                               <div className="flex items-center gap-3">
-  <span className="text-sm font-medium">Stay Duration:</span>
-  <div className="flex items-center gap-2">
-    <span className="font-semibold w-16 text-center">
-      {item.days} {item.days === 1 ? "Day" : "Days"}
-    </span>
-  </div>
-</div>
-
+                                <span className="text-sm font-medium">Stay Duration:</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold w-16 text-center">
+                                    {item.days} {item.days === 1 ? "Day" : "Days"}
+                                  </span>
+                                </div>
+                              </div>
                               
                               <div className="flex items-center justify-between sm:justify-end gap-3">
-                                {item.price_before_admin_discount && item.price_before_admin_discount > 0 ? (
+                                {hasDiscount ? (
                                   <div className="text-right">
                                     <div className="flex items-center gap-1.5 justify-end">
-                                        <Tag className="h-3 w-3 text-green-600" />
-                                        <p className="text-xs text-green-600 font-semibold">Special Discount Applied!</p>
+                                      <Tag className="h-3 w-3 text-green-600" />
+                                      <p className="text-xs text-green-600 font-semibold">Discount Applied!</p>
                                     </div>
                                     <span className="text-sm text-gray-500 line-through">
-                                      ₹{formatIndianCurrency(item.price_before_admin_discount + (item.visa_cost || 0))}
+                                      ₹{formatIndianCurrency(itemOriginalPrice)}
                                     </span>
                                     <span className="text-lg md:text-xl font-bold text-travel-primary ml-2">
-                                     ₹{formatIndianCurrency(item.total_price + (item.visa_cost || 0))}
+                                      ₹{formatIndianCurrency(itemCurrentPrice)}
                                     </span>
                                   </div>
                                 ) : (
                                   <span className="text-lg md:text-xl font-bold text-travel-primary">
-                                    ₹{formatIndianCurrency(item.total_price + (item.visa_cost || 0))}
+                                    ₹{formatIndianCurrency(itemCurrentPrice)}
                                   </span>
                                 )}
                                 <Button
@@ -628,11 +894,86 @@ const Cart = () => {
                       <span>{cartItems.reduce((total, item) => total + (item.members || 1), 0)}</span>
                     </div>
                     <hr />
+
+
+
+                    {/* Coupon Section */}
+                    <div className="space-y-3">
+  <label htmlFor="coupon" className="text-sm font-medium">Have a coupon?</label>
+  
+  {appliedCoupon || hasExistingCoupon ? (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+        <div className="flex items-center gap-2">
+          <Tag className="h-4 w-4 text-green-600" />
+          <span className="text-sm font-medium text-green-800">
+            {appliedCoupon?.offer_title || cartCouponDetails}
+          </span>
+        </div>
+        <Button 
+          type="button" 
+          variant="outline" 
+          size="sm"
+          onClick={handleRemoveCoupon}
+          disabled={isApplyingCoupon}
+        >
+          Remove
+        </Button>
+      </div>
+      {couponMessage.text && (
+        <p className={`text-sm ${couponMessage.type === 'error' ? 'text-destructive' : couponMessage.type === 'success' ? 'text-green-600' : 'text-muted-foreground'}`}>
+          {couponMessage.text}
+        </p>
+      )}
+    </div>
+  ) : (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <Input
+          id="coupon"
+          type="text"
+          placeholder="Enter coupon code"
+          value={couponCode}
+          onChange={(e) => setCouponCode(e.target.value)}
+          disabled={isApplyingCoupon}
+          className="flex-1"
+        />
+        <Button 
+  type="button" 
+  onClick={handleApplyCoupon} 
+  disabled={!!appliedCoupon || isApplyingCoupon || hasExistingCoupon}
+  size="sm"
+>
+  {isApplyingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : appliedCoupon ? 'Applied' : 'Apply'}
+</Button>
+      </div>
+      {couponMessage.text && (
+        <p className={`text-sm ${couponMessage.type === 'error' ? 'text-destructive' : couponMessage.type === 'success' ? 'text-green-600' : 'text-muted-foreground'}`}>
+          {couponMessage.text}
+        </p>
+      )}
+    </div>
+  )}
+</div>
+                    
+                    <hr />
+                    
                     <div className="flex justify-between text-lg font-bold">
                       <span>Total Amount:</span>
-                      <span className="text-travel-primary">
-                        ₹{formatIndianCurrency(getTotalPrice())}
-                      </span>
+                      {appliedCoupon || hasExistingCoupon ? (
+                        <div className="text-right">
+                          <span className="text-sm text-gray-500 line-through block">
+                            ₹{formatIndianCurrency(getOriginalPrice())}
+                          </span>
+                          <span className="text-travel-primary text-xl">
+                            ₹{formatIndianCurrency(finalPrice)}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-travel-primary text-xl">
+                          ₹{formatIndianCurrency(getTotalPrice())}
+                        </span>
+                      )}
                     </div>
                     
                     <div className="space-y-3">
@@ -713,31 +1054,30 @@ const Cart = () => {
                                         </a>
                                       )}
                                       <div className="flex items-center justify-between mt-1">
-  <p
-    className={`text-xs ${
-      message.sender_type === "customer"
-        ? "opacity-75"
-        : "text-muted-foreground"
-    }`}
-  >
-    {message.sender_type === "customer"
-      ? ""
-      : `Support Team | ${format(new Date(message.created_at), "MMM dd, HH:mm")}`}
-  </p>
+                                        <p
+                                          className={`text-xs ${
+                                            message.sender_type === "customer"
+                                              ? "opacity-75"
+                                              : "text-muted-foreground"
+                                          }`}
+                                        >
+                                          {message.sender_type === "customer"
+                                            ? ""
+                                            : `Support Team | ${format(new Date(message.created_at), "MMM dd, HH:mm")}`}
+                                        </p>
 
-  {message.sender_type === "customer" && (
-    <p
-      className={`text-xs ${
-        message.sender_type === "customer"
-          ? "opacity-75"
-          : "text-muted-foreground"
-      }`}
-    >
-      {format(new Date(message.created_at), "MMM dd, HH:mm")}
-    </p>
-  )}
-</div>
-
+                                        {message.sender_type === "customer" && (
+                                          <p
+                                            className={`text-xs ${
+                                              message.sender_type === "customer"
+                                                ? "opacity-75"
+                                                : "text-muted-foreground"
+                                            }`}
+                                          >
+                                            {format(new Date(message.created_at), "MMM dd, HH:mm")}
+                                          </p>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
                                 ))
@@ -843,12 +1183,11 @@ const Cart = () => {
               </div>
 
               {selectedPackage.selected_date && (
-  <div>
-    <strong className="block mb-2">Selected Date:</strong>
-    <p className="text-gray-600">{format(new Date(selectedPackage.selected_date), 'MMMM dd, yyyy')}</p>
-  </div>
-)}
-
+                <div>
+                  <strong className="block mb-2">Selected Date:</strong>
+                  <p className="text-gray-600">{format(new Date(selectedPackage.selected_date), 'MMMM dd, yyyy')}</p>
+                </div>
+              )}
 
               <div>
                 <strong className="block mb-2">Destinations:</strong>
@@ -868,32 +1207,38 @@ const Cart = () => {
               </div>
 
               <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
-  <div>
-    <p className="text-sm text-gray-600">
-      Total Price ({selectedPackage.days} days, {selectedPackage.members || 1} members)
-    </p>
+                <div>
+                  <p className="text-sm text-gray-600">
+                    Total Price ({selectedPackage.days} days, {selectedPackage.members || 1} members)
+                  </p>
                   
-    {selectedPackage.price_before_admin_discount && selectedPackage.price_before_admin_discount > 0 ? (
-      <div className="space-y-1">
-        <div className="flex items-center gap-1.5">
-          <Tag className="h-4 w-4 text-green-600" />
-          <span className="text-sm text-green-600 font-semibold">Special Discount Applied!</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-gray-500 line-through text-sm">
-            ₹{(selectedPackage.price_before_admin_discount + (selectedPackage.visa_cost || 0)).toLocaleString()}
-          </span>
-          <span className="text-2xl font-bold text-travel-primary">
-            ₹{(selectedPackage.total_price + (selectedPackage.visa_cost || 0)).toLocaleString()}
-          </span>
-        </div>
-      </div>
-    ) : (
-      <p className="text-2xl font-bold text-travel-primary">
-        ₹{formatIndianCurrency(selectedPackage.total_price + (selectedPackage.visa_cost || 0)).toLocaleString()}
-      </p>
-    )}
-  </div>
+                  {(() => {
+                    const itemOriginalPrice = getItemOriginalPrice(selectedPackage);
+                    const itemCurrentPrice = selectedPackage.total_price + (selectedPackage.visa_cost || 0);
+                    const hasDiscount = itemOriginalPrice > itemCurrentPrice;
+                    
+                    return hasDiscount ? (
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <Tag className="h-4 w-4 text-green-600" />
+                          <span className="text-sm text-green-600 font-semibold">Discount Applied!</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 line-through text-sm">
+                            ₹{formatIndianCurrency(itemOriginalPrice)}
+                          </span>
+                          <span className="text-2xl font-bold text-travel-primary">
+                            ₹{formatIndianCurrency(itemCurrentPrice)}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-2xl font-bold text-travel-primary">
+                        ₹{formatIndianCurrency(itemCurrentPrice)}
+                      </p>
+                    );
+                  })()}
+                </div>
 
                 <div className="flex gap-2">
                   {selectedPackage.booking_type === 'booked' ? (
