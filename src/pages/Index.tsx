@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import FestivalPopup from '@/components/FestivalPopup';
 import SEOHead from '../components/SEOHead';
 import Navbar from '../components/Navbar';
 import Hero from '../components/Hero';
@@ -150,6 +151,7 @@ const Index = () => {
         structuredData={homepageStructuredData}
       />
       <div className="min-h-screen flex flex-col">
+        <FestivalPopup />
         <Navbar />
         <main className="flex-grow">
           <Hero />

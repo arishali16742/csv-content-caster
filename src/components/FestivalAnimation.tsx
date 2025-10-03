@@ -102,31 +102,40 @@ const FestivalAnimation = () => {
 
 // Christmas Animation - Snow and Santa
 const ChristmasAnimation = ({ offerText, duration }: { offerText: string | null; duration: number }) => {
-  const snowflakes = Array.from({ length: 30 }, (_, i) => i);
+  const snowflakes = Array.from({ length: 100 }, (_, i) => i);
 
   return (
     <>
-      {/* Snowflakes */}
-      {snowflakes.map((i) => (
-        <motion.div
-          key={i}
-          className="absolute text-white text-2xl"
-          initial={{ y: -20, x: Math.random() * window.innerWidth, opacity: 0.8 }}
-          animate={{
-            y: window.innerHeight + 20,
-            x: Math.random() * window.innerWidth,
-            rotate: 360,
-          }}
-          transition={{
-            duration: Math.random() * 3 + 5,
-            repeat: Infinity,
-            delay: Math.random() * duration,
-            ease: 'linear',
-          }}
-        >
-          <Snowflake className="w-4 h-4" />
-        </motion.div>
-      ))}
+      {/* Snowflakes covering entire width */}
+      {snowflakes.map((i) => {
+        const startX = (i * (window.innerWidth / 100)) + Math.random() * 50;
+        return (
+          <motion.div
+            key={i}
+            className="absolute text-white"
+            style={{ fontSize: Math.random() * 10 + 15 }}
+            initial={{ 
+              y: -50, 
+              x: startX,
+              opacity: Math.random() * 0.3 + 0.5,
+              rotate: Math.random() * 360
+            }}
+            animate={{
+              y: window.innerHeight + 50,
+              x: startX + Math.sin(i) * 100,
+              rotate: 360,
+            }}
+            transition={{
+              duration: Math.random() * 5 + 8,
+              repeat: Infinity,
+              delay: Math.random() * 2,
+              ease: 'linear',
+            }}
+          >
+            ❄️
+          </motion.div>
+        );
+      })}
 
       {/* Santa Sleigh */}
       <motion.div
@@ -141,59 +150,54 @@ const ChristmasAnimation = ({ offerText, duration }: { offerText: string | null;
       >
         🎅🛷
       </motion.div>
-
-      {/* Offer Text */}
-      {offerText && (
-        <motion.div
-          className="absolute top-10 left-1/2 transform -translate-x-1/2 bg-red-600 text-white px-6 py-3 rounded-full font-bold text-lg shadow-lg"
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.5, delay: 1 }}
-        >
-          🎄 {offerText} 🎄
-        </motion.div>
-      )}
     </>
   );
 };
 
 // Holi Animation - Colors from Pichkari
 const HoliAnimation = ({ offerText, duration }: { offerText: string | null; duration: number }) => {
-  const colors = ['#FF0080', '#00FF80', '#8000FF', '#FFFF00', '#00FFFF', '#FF4500'];
-  const splashes = Array.from({ length: 25 }, (_, i) => i);
+  const colors = ['#FF0080', '#00FF80', '#8000FF', '#FFFF00', '#00FFFF', '#FF4500', '#FF1493', '#32CD32'];
+  const splashes = Array.from({ length: 60 }, (_, i) => i);
 
   return (
     <>
-      {/* Color Splashes */}
+      {/* Holi Powder Splashes from top */}
       {splashes.map((i) => {
         const color = colors[i % colors.length];
-        const startX = Math.random() * window.innerWidth;
-        const startY = Math.random() * (window.innerHeight * 0.3);
+        const startX = (i * (window.innerWidth / 60)) + Math.random() * 30;
+        const size = Math.random() * 80 + 60;
 
         return (
           <motion.div
             key={i}
-            className="absolute rounded-full"
+            className="absolute"
             style={{
-              width: Math.random() * 30 + 20,
-              height: Math.random() * 30 + 20,
-              backgroundColor: color,
-              opacity: 0.6,
+              left: startX,
+              top: -100,
             }}
-            initial={{ x: startX, y: startY, scale: 0 }}
+            initial={{ opacity: 0, scale: 0 }}
             animate={{
-              x: startX + (Math.random() - 0.5) * 300,
-              y: startY + Math.random() * window.innerHeight,
-              scale: [0, 1.5, 1],
-              opacity: [0, 0.8, 0],
+              y: [0, Math.random() * 400 + 200],
+              opacity: [0, 0.9, 0.7, 0],
+              scale: [0, 1.5, 2, 0],
             }}
             transition={{
-              duration: Math.random() * 2 + 2,
+              duration: Math.random() * 3 + 3,
               repeat: Infinity,
               delay: Math.random() * duration,
               ease: 'easeOut',
             }}
-          />
+          >
+            <div
+              style={{
+                width: size,
+                height: size,
+                background: `radial-gradient(circle, ${color}dd 0%, ${color}88 50%, ${color}00 100%)`,
+                borderRadius: '50%',
+                filter: 'blur(8px)',
+              }}
+            />
+          </motion.div>
         );
       })}
 
@@ -211,76 +215,87 @@ const HoliAnimation = ({ offerText, duration }: { offerText: string | null; dura
       >
         💦
       </motion.div>
-
-      {/* Offer Text */}
-      {offerText && (
-        <motion.div
-          className="absolute top-10 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-pink-500 to-purple-500 text-white px-6 py-3 rounded-full font-bold text-lg shadow-lg"
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.5, delay: 1 }}
-        >
-          🎨 {offerText} 🎨
-        </motion.div>
-      )}
     </>
   );
 };
 
 // Diwali Animation - Firecrackers
 const DiwaliAnimation = ({ offerText, duration }: { offerText: string | null; duration: number }) => {
-  const fireworks = Array.from({ length: 15 }, (_, i) => i);
+  const corners = [
+    { x: '5%', y: '10%' },
+    { x: '95%', y: '10%' },
+    { x: '5%', y: '90%' },
+    { x: '95%', y: '90%' },
+    { x: '50%', y: '5%' },
+    { x: '25%', y: '15%' },
+    { x: '75%', y: '15%' },
+  ];
 
   return (
     <>
-      {/* Fireworks */}
-      {fireworks.map((i) => {
-        const x = Math.random() * window.innerWidth;
-        const y = Math.random() * (window.innerHeight * 0.6);
-
-        return (
-          <motion.div
-            key={i}
-            className="absolute"
-            style={{ left: x, top: y }}
-          >
+      {/* Firecrackers from corners */}
+      {corners.map((corner, cornerIndex) => (
+        <React.Fragment key={cornerIndex}>
+          {Array.from({ length: 3 }).map((_, i) => (
             <motion.div
-              className="text-4xl"
-              initial={{ scale: 0, opacity: 1 }}
-              animate={{
-                scale: [0, 2, 0],
-                opacity: [1, 1, 0],
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                delay: Math.random() * duration,
-                ease: 'easeOut',
-              }}
+              key={`${cornerIndex}-${i}`}
+              className="absolute"
+              style={{ left: corner.x, top: corner.y }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
             >
-              ✨
-            </motion.div>
-            {Array.from({ length: 8 }).map((_, j) => (
+              {/* Main burst */}
               <motion.div
-                key={j}
-                className="absolute w-2 h-2 bg-yellow-400 rounded-full"
-                initial={{ x: 0, y: 0, opacity: 1 }}
+                className="absolute"
+                initial={{ scale: 0, opacity: 1 }}
                 animate={{
-                  x: Math.cos((j * Math.PI) / 4) * 50,
-                  y: Math.sin((j * Math.PI) / 4) * 50,
-                  opacity: [1, 0],
+                  scale: [0, 1.5, 2, 0],
+                  opacity: [1, 0.8, 0.5, 0],
                 }}
                 transition={{
-                  duration: 1.5,
+                  duration: 2,
                   repeat: Infinity,
-                  delay: Math.random() * duration,
+                  delay: (cornerIndex * 0.5) + (i * 0.3),
                   ease: 'easeOut',
                 }}
-              />
-            ))}
-          </motion.div>
-        );
-      })}
+              >
+                <div
+                  style={{
+                    width: 100,
+                    height: 100,
+                    background: `radial-gradient(circle, #FFD700 0%, #FF6B6B 30%, #FF8C00 60%, transparent 100%)`,
+                    borderRadius: '50%',
+                    filter: 'blur(2px)',
+                  }}
+                />
+              </motion.div>
+
+              {/* Sparkles */}
+              {Array.from({ length: 12 }).map((_, j) => (
+                <motion.div
+                  key={j}
+                  className="absolute text-yellow-400 text-2xl"
+                  initial={{ x: 0, y: 0, opacity: 1 }}
+                  animate={{
+                    x: Math.cos((j * Math.PI * 2) / 12) * 80,
+                    y: Math.sin((j * Math.PI * 2) / 12) * 80,
+                    opacity: [1, 0.5, 0],
+                    scale: [1, 0.5, 0],
+                  }}
+                  transition={{
+                    duration: 1.5,
+                    repeat: Infinity,
+                    delay: (cornerIndex * 0.5) + (i * 0.3),
+                    ease: 'easeOut',
+                  }}
+                >
+                  ✨
+                </motion.div>
+              ))}
+            </motion.div>
+          ))}
+        </React.Fragment>
+      ))}
 
       {/* Diya */}
       <motion.div
@@ -295,25 +310,14 @@ const DiwaliAnimation = ({ offerText, duration }: { offerText: string | null; du
       >
         🪔
       </motion.div>
-
-      {/* Offer Text */}
-      {offerText && (
-        <motion.div
-          className="absolute top-10 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-6 py-3 rounded-full font-bold text-lg shadow-lg"
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.5, delay: 1 }}
-        >
-          🪔 {offerText} 🪔
-        </motion.div>
-      )}
     </>
   );
 };
 
 // Eid Animation - Moon and Greetings
 const EidAnimation = ({ offerText, duration }: { offerText: string | null; duration: number }) => {
-  const stars = Array.from({ length: 20 }, (_, i) => i);
+  const stars = Array.from({ length: 40 }, (_, i) => i);
+  const people = Array.from({ length: 8 }, (_, i) => i);
 
   return (
     <>
@@ -321,8 +325,9 @@ const EidAnimation = ({ offerText, duration }: { offerText: string | null; durat
       {stars.map((i) => (
         <motion.div
           key={i}
-          className="absolute text-yellow-300 text-xl"
+          className="absolute text-yellow-300"
           style={{
+            fontSize: Math.random() * 15 + 20,
             left: Math.random() * window.innerWidth,
             top: Math.random() * (window.innerHeight * 0.5),
           }}
@@ -345,6 +350,7 @@ const EidAnimation = ({ offerText, duration }: { offerText: string | null; durat
         className="absolute top-20 right-20 text-8xl"
         animate={{
           rotate: [0, 10, -10, 0],
+          scale: [1, 1.05, 1],
         }}
         transition={{
           duration: 4,
@@ -354,31 +360,39 @@ const EidAnimation = ({ offerText, duration }: { offerText: string | null; durat
         🌙
       </motion.div>
 
-      {/* People Greeting */}
-      <motion.div
-        className="absolute bottom-32 left-1/4 text-5xl"
-        animate={{
-          x: [0, 20, 0],
-        }}
-        transition={{
-          duration: 3,
-          repeat: Infinity,
-        }}
-      >
-        🤝
-      </motion.div>
-
-      {/* Offer Text */}
-      {offerText && (
-        <motion.div
-          className="absolute top-10 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-green-500 to-teal-500 text-white px-6 py-3 rounded-full font-bold text-lg shadow-lg"
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.5, delay: 1 }}
-        >
-          🌙 {offerText} 🌙
-        </motion.div>
-      )}
+      {/* People Greeting and Hugging */}
+      {people.map((i) => {
+        const positions = [
+          { bottom: '20%', left: '10%' },
+          { bottom: '25%', left: '25%' },
+          { bottom: '20%', right: '15%' },
+          { bottom: '30%', right: '30%' },
+          { bottom: '15%', left: '40%' },
+          { bottom: '35%', left: '60%' },
+          { bottom: '20%', right: '45%' },
+          { bottom: '25%', left: '80%' },
+        ];
+        const emojis = ['🤝', '🫂', '🙏', '👨‍👩‍👧‍👦', '👥', '🤗', '💚', '🕌'];
+        
+        return (
+          <motion.div
+            key={i}
+            className="absolute text-5xl"
+            style={positions[i]}
+            animate={{
+              scale: [1, 1.2, 1],
+              y: [0, -10, 0],
+            }}
+            transition={{
+              duration: 3,
+              repeat: Infinity,
+              delay: i * 0.3,
+            }}
+          >
+            {emojis[i]}
+          </motion.div>
+        );
+      })}
     </>
   );
 };
