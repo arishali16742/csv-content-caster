@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { motion } from 'framer-motion';
+import santaImg from '@/assets/santa.png';
+import bellsImg from '@/assets/christmas-bells.png';
 
 interface FestivalAnimationData {
   id: string;
@@ -105,6 +107,22 @@ const ChristmasAnimation = ({ offerText, duration }: { offerText: string | null;
 
   return (
     <>
+      {/* Bell decorations at left and right edges */}
+      <div className="fixed top-0 left-0 w-64 h-32 pointer-events-none z-40">
+        <img 
+          src={bellsImg} 
+          alt="Christmas bells" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="fixed top-0 right-0 w-64 h-32 pointer-events-none z-40">
+        <img 
+          src={bellsImg} 
+          alt="Christmas bells" 
+          className="w-full h-full object-cover transform scale-x-[-1]"
+        />
+      </div>
+
       {/* Snowflakes */}
       {snowflakes.map((i) => {
         const startX = Math.random() * window.innerWidth;
@@ -144,21 +162,33 @@ const ChristmasAnimation = ({ offerText, duration }: { offerText: string | null;
         );
       })}
 
-      {/* Santa sleigh */}
+      {/* Santa moving from left to right */}
       <motion.div
-        className="absolute text-6xl flex items-center gap-1"
-        style={{ top: '20%' }}
-        initial={{ x: -200 }}
-        animate={{ x: window.innerWidth + 200 }}
+        className="absolute"
+        style={{ top: '25%' }}
+        initial={{ x: -250, y: 0 }}
+        animate={{ 
+          x: window.innerWidth + 250,
+          y: [0, -20, 0, -15, 0]
+        }}
         transition={{
-          duration: duration,
-          repeat: Infinity,
-          ease: 'linear',
+          x: {
+            duration: duration,
+            repeat: Infinity,
+            ease: 'linear',
+          },
+          y: {
+            duration: 3,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          }
         }}
       >
-        <span>🦌</span>
-        <span>🛷</span>
-        <span>🎅</span>
+        <img 
+          src={santaImg} 
+          alt="Santa" 
+          className="w-48 h-48 object-contain drop-shadow-2xl"
+        />
       </motion.div>
     </>
   );
