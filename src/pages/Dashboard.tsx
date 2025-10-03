@@ -38,6 +38,7 @@ import OffersManagement from '../components/OffersManagement';
 import HomepageManagement from '../components/HomepageManagement';
 import CartReviewManagement from '../components/CartReviewManagement';
 import VideoManagement from '../components/VideoManagement';
+import FestivalAnimationManagement from '../components/FestivalAnimationManagement';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -102,7 +103,8 @@ const Dashboard = () => {
     { id: 'offers', label: 'Wheel Offers' },
     { id: 'login-popup', label: 'Login Popup' },
     { id: 'cart-review', label: 'Booking Review' },
-    { id: 'video', label: 'Video Management' } // <-- new tab
+    { id: 'video', label: 'Video Management' },
+    { id: 'festival-animation', label: 'Festival Animations' }
   ];
 
   return (
@@ -163,7 +165,8 @@ const Dashboard = () => {
             {activeTab === 'offers' && <OffersManagement />}
             {activeTab === 'login-popup' && <LoginPopupManagement />}
             {activeTab === 'cart-review' && <CartReviewManagement />}
-            {activeTab === 'video' && <VideoManagement />} {/* <-- new content */}
+            {activeTab === 'video' && <VideoManagement />}
+            {activeTab === 'festival-animation' && <FestivalAnimationManagement />}
           </div>
         </div>
       </main>

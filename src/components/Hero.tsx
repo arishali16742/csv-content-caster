@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
+import FestivalAnimation from './FestivalAnimation';
 
 interface ExploreDestination {
   id: string;
@@ -88,6 +89,9 @@ const Hero = () => {
       backgroundPosition: 'center',
     }}>
       <div className="absolute inset-0 bg-black/40"></div>
+      
+      {/* Festival Animation Overlay */}
+      <FestivalAnimation />
 
       <div className="relative z-10 max-w-7xl mx-auto text-center text-white flex-grow flex flex-col justify-center w-full">
         <header className="mb-8 md:mb-16 px-2 md:px-[10px] pt-[80px] md:pt-[126px] pb-0">
