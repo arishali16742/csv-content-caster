@@ -20,13 +20,11 @@ const FestivalPopup = () => {
   const [animation, setAnimation] = useState<FestivalAnimationData | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [couponCode, setCouponCode] = useState<string | null>(null);
 
   useEffect(() => {
-    const hasSeenPopup = sessionStorage.getItem('festival_popup_seen');
-    console.log('FestivalPopup mounted, hasSeenPopup:', hasSeenPopup);
-    if (!hasSeenPopup) {
-      loadActiveAnimation();
-    }
+    console.log('FestivalPopup mounted');
+    loadActiveAnimation();
 
     const channel = supabase
       .channel('festival-popup-changes')
@@ -69,43 +67,56 @@ const FestivalPopup = () => {
         console.log(`Animation ${anim.festival_name}:`, {
           startDate,
           endDate,
-          isInRange,
-          hasCoupon: !!anim.coupon_code
+          isInRange
         });
         return isInRange;
       });
 
-      if (activeAnimation && (activeAnimation as any).coupon_code) {
-        console.log('Setting active animation:', activeAnimation);
+      if (activeAnimation) {
+        // Generate a festival-specific coupon for this session
+        const map: Record<string, string> = {
+          christmas: 'XMAS',
+          holi: 'HOLI',
+          diwali: 'DIWALI',
+          eid: 'EID'
+        };
+        const type = (activeAnimation as any).animation_type as string;
+        const prefix = map[type] || ((activeAnimation as any).festival_name || 'FEST').toUpperCase().replace(/[^A-Z]/g, '');
+        const random = Math.floor(1000 + Math.random() * 9000);
+        const generated = `${prefix}SPECIAL${random}`;
+
         setAnimation(activeAnimation as unknown as FestivalAnimationData);
+        setCouponCode(generated);
         setIsOpen(true);
       } else {
-        console.log('No active animation with coupon found');
+        console.log('No active animation in date range');
       }
     }
   };
 
   const handleClose = () => {
     setIsOpen(false);
-    sessionStorage.setItem('festival_popup_seen', 'true');
+    if (animation) {
+      sessionStorage.setItem(`festival_popup_seen_${(animation as any).id}`, 'true');
+    }
   };
 
   const handleCopy = async () => {
-    if (animation?.coupon_code) {
+    if (couponCode) {
       try {
-        await navigator.clipboard.writeText(animation.coupon_code);
+        await navigator.clipboard.writeText(couponCode);
         setCopied(true);
         
         // Add coupon to user_coupons table
         const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const expiresAt = new Date(animation.end_date);
+        if (user && animation) {
+          const expiresAt = new Date((animation as any).end_date);
           
           await supabase.from('user_coupons').insert({
             user_id: user.id,
-            coupon_code: animation.coupon_code,
-            offer_title: animation.offer_text || animation.festival_name,
-            discount: '10%', // You can adjust this or get from animation data
+            coupon_code: couponCode,
+            offer_title: (animation as any).offer_text || (animation as any).festival_name,
+            discount: '10%',
             expires_at: expiresAt.toISOString(),
             used: false
           });
@@ -247,7 +258,7 @@ const FestivalPopup = () => {
                 )}
 
                 {/* Coupon Code */}
-                {animation.coupon_code && (
+                {couponCode && (
                   <div className="space-y-3">
                     <p className={`text-sm font-medium ${cardStyle.accentColor}`}>
                       Your Exclusive Coupon Code:
@@ -255,7 +266,7 @@ const FestivalPopup = () => {
                     <div className="bg-white rounded-xl p-4 shadow-lg">
                       <div className="flex items-center justify-between gap-3">
                         <code className="text-2xl font-bold text-gray-800 tracking-wider flex-1">
-                          {animation.coupon_code}
+                          {couponCode}
                         </code>
                         <Button
                           onClick={handleCopy}
