@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { motion } from 'framer-motion';
-import { Snowflake, Sparkles } from 'lucide-react';
+import christmasImg from '@/assets/festival-christmas.jpg';
+import holiImg from '@/assets/festival-holi.jpg';
+import diwaliImg from '@/assets/festival-diwali.jpg';
+import eidImg from '@/assets/festival-eid.jpg';
 
 interface FestivalAnimationData {
   id: string;
@@ -100,311 +103,265 @@ const FestivalAnimation = () => {
   return <div className="pointer-events-none">{renderAnimation()}</div>;
 };
 
-// Christmas Animation - Snow and Santa
+// Christmas Animation - Realistic Scene
 const ChristmasAnimation = ({ offerText, duration }: { offerText: string | null; duration: number }) => {
-  const snowflakes = Array.from({ length: 150 }, (_, i) => i);
-
   return (
-    <>
-      {/* Realistic Snowflakes covering entire width */}
-      {snowflakes.map((i) => {
-        const startX = Math.random() * window.innerWidth;
-        const size = Math.random() * 8 + 12;
-        const drift = Math.random() * 150 - 75;
-        
-        return (
+    <motion.div
+      className="fixed inset-0 pointer-events-none z-50"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 1 }}
+    >
+      <motion.div
+        className="absolute inset-0 bg-cover bg-center"
+        style={{ backgroundImage: `url(${christmasImg})` }}
+        animate={{
+          scale: [1, 1.05, 1],
+        }}
+        transition={{
+          duration: 20,
+          repeat: Infinity,
+          ease: 'easeInOut',
+        }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-b from-blue-900/20 via-transparent to-blue-900/20 animate-pulse" />
+      
+      {/* Falling snow overlay */}
+      <div className="absolute inset-0">
+        {Array.from({ length: 50 }).map((_, i) => (
           <motion.div
             key={i}
-            className="absolute"
-            style={{ 
-              fontSize: size,
-              filter: 'drop-shadow(0 0 2px rgba(255,255,255,0.8))',
-              left: startX
-            }}
-            initial={{ 
-              y: -50, 
-              opacity: Math.random() * 0.4 + 0.6,
-              rotate: Math.random() * 360
+            className="absolute w-2 h-2 bg-white rounded-full opacity-80"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `-5%`,
             }}
             animate={{
-              y: window.innerHeight + 50,
-              x: startX + drift,
-              rotate: [0, 360, 720],
-              opacity: [0.8, 1, 0.6, 1, 0.8],
+              y: ['0vh', '100vh'],
+              x: [0, Math.random() * 50 - 25],
+              opacity: [0.8, 1, 0.6],
             }}
             transition={{
-              duration: Math.random() * 8 + 10,
+              duration: Math.random() * 10 + 10,
               repeat: Infinity,
               delay: Math.random() * 5,
               ease: 'linear',
             }}
-          >
-            ❄️
-          </motion.div>
-        );
-      })}
-
-      {/* Full Santa with Sleigh and Reindeer */}
-      <motion.div
-        className="absolute text-7xl flex items-center gap-1"
-        style={{ top: '15%' }}
-        initial={{ x: -200 }}
-        animate={{ x: window.innerWidth + 200 }}
-        transition={{
-          duration: duration,
-          repeat: Infinity,
-          ease: 'linear',
-        }}
-      >
-        <span>🦌</span>
-        <span>🦌</span>
-        <span>🛷</span>
-        <span>🎅</span>
-      </motion.div>
-    </>
+          />
+        ))}
+      </div>
+    </motion.div>
   );
 };
 
-// Holi Animation - Colors from Pichkari
+// Holi Animation - Realistic Scene
 const HoliAnimation = ({ offerText, duration }: { offerText: string | null; duration: number }) => {
   const colors = ['#FF0080', '#00FF80', '#8000FF', '#FFFF00', '#00FFFF', '#FF4500', '#FF1493', '#32CD32'];
-  const splashes = Array.from({ length: 60 }, (_, i) => i);
 
   return (
-    <>
-      {/* Holi Powder Splashes from top */}
-      {splashes.map((i) => {
-        const color = colors[i % colors.length];
-        const startX = (i * (window.innerWidth / 60)) + Math.random() * 30;
-        const size = Math.random() * 80 + 60;
-
-        return (
+    <motion.div
+      className="fixed inset-0 pointer-events-none z-50"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 1 }}
+    >
+      <motion.div
+        className="absolute inset-0 bg-cover bg-center"
+        style={{ backgroundImage: `url(${holiImg})` }}
+        animate={{
+          scale: [1, 1.08, 1],
+        }}
+        transition={{
+          duration: 15,
+          repeat: Infinity,
+          ease: 'easeInOut',
+        }}
+      />
+      
+      {/* Color powder bursts overlay */}
+      <div className="absolute inset-0">
+        {Array.from({ length: 30 }).map((_, i) => (
           <motion.div
             key={i}
-            className="absolute"
+            className="absolute rounded-full blur-2xl"
             style={{
-              left: startX,
-              top: -100,
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              width: `${Math.random() * 200 + 100}px`,
+              height: `${Math.random() * 200 + 100}px`,
+              background: `radial-gradient(circle, ${colors[i % colors.length]}88 0%, ${colors[i % colors.length]}00 70%)`,
             }}
-            initial={{ opacity: 0, scale: 0 }}
             animate={{
-              y: [0, Math.random() * 400 + 200],
-              opacity: [0, 0.9, 0.7, 0],
-              scale: [0, 1.5, 2, 0],
+              scale: [0, 2, 0],
+              opacity: [0, 0.8, 0],
+              x: [0, Math.random() * 100 - 50],
+              y: [0, Math.random() * 100 - 50],
             }}
             transition={{
-              duration: Math.random() * 3 + 3,
+              duration: Math.random() * 4 + 3,
               repeat: Infinity,
-              delay: Math.random() * duration,
+              delay: Math.random() * 5,
               ease: 'easeOut',
             }}
-          >
-            <div
-              style={{
-                width: size,
-                height: size,
-                background: `radial-gradient(circle, ${color}dd 0%, ${color}88 50%, ${color}00 100%)`,
-                borderRadius: '50%',
-                filter: 'blur(8px)',
-              }}
-            />
-          </motion.div>
-        );
-      })}
-
-      {/* Pichkari */}
-      <motion.div
-        className="absolute text-5xl"
-        style={{ top: '15%', left: '10%' }}
-        animate={{
-          rotate: [0, 10, -10, 0],
-        }}
-        transition={{
-          duration: 2,
-          repeat: Infinity,
-        }}
-      >
-        💦
-      </motion.div>
-    </>
+          />
+        ))}
+      </div>
+    </motion.div>
   );
 };
 
-// Diwali Animation - Firecrackers
+// Diwali Animation - Realistic Scene
 const DiwaliAnimation = ({ offerText, duration }: { offerText: string | null; duration: number }) => {
-  const corners = [
-    { x: '5%', y: '10%' },
-    { x: '95%', y: '10%' },
-    { x: '5%', y: '90%' },
-    { x: '95%', y: '90%' },
-    { x: '50%', y: '5%' },
-    { x: '25%', y: '15%' },
-    { x: '75%', y: '15%' },
-  ];
-
   return (
-    <>
-      {/* Firecrackers from corners */}
-      {corners.map((corner, cornerIndex) => (
-        <React.Fragment key={cornerIndex}>
-          {Array.from({ length: 3 }).map((_, i) => (
-            <motion.div
-              key={`${cornerIndex}-${i}`}
-              className="absolute"
-              style={{ left: corner.x, top: corner.y }}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-            >
-              {/* Main burst */}
-              <motion.div
-                className="absolute"
-                initial={{ scale: 0, opacity: 1 }}
-                animate={{
-                  scale: [0, 1.5, 2, 0],
-                  opacity: [1, 0.8, 0.5, 0],
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  delay: (cornerIndex * 0.5) + (i * 0.3),
-                  ease: 'easeOut',
-                }}
-              >
-                <div
-                  style={{
-                    width: 100,
-                    height: 100,
-                    background: `radial-gradient(circle, #FFD700 0%, #FF6B6B 30%, #FF8C00 60%, transparent 100%)`,
-                    borderRadius: '50%',
-                    filter: 'blur(2px)',
-                  }}
-                />
-              </motion.div>
-
-              {/* Sparkles */}
-              {Array.from({ length: 12 }).map((_, j) => (
-                <motion.div
-                  key={j}
-                  className="absolute text-yellow-400 text-2xl"
-                  initial={{ x: 0, y: 0, opacity: 1 }}
-                  animate={{
-                    x: Math.cos((j * Math.PI * 2) / 12) * 80,
-                    y: Math.sin((j * Math.PI * 2) / 12) * 80,
-                    opacity: [1, 0.5, 0],
-                    scale: [1, 0.5, 0],
-                  }}
-                  transition={{
-                    duration: 1.5,
-                    repeat: Infinity,
-                    delay: (cornerIndex * 0.5) + (i * 0.3),
-                    ease: 'easeOut',
-                  }}
-                >
-                  ✨
-                </motion.div>
-              ))}
-            </motion.div>
-          ))}
-        </React.Fragment>
-      ))}
-
-      {/* Diya */}
+    <motion.div
+      className="fixed inset-0 pointer-events-none z-50"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 1 }}
+    >
       <motion.div
-        className="absolute bottom-32 left-1/2 transform -translate-x-1/2 text-6xl"
+        className="absolute inset-0 bg-cover bg-center"
+        style={{ backgroundImage: `url(${diwaliImg})` }}
         animate={{
-          scale: [1, 1.1, 1],
-        }}
-        transition={{
-          duration: 2,
-          repeat: Infinity,
-        }}
-      >
-        🪔
-      </motion.div>
-    </>
-  );
-};
-
-// Eid Animation - Moon and Greetings
-const EidAnimation = ({ offerText, duration }: { offerText: string | null; duration: number }) => {
-  const stars = Array.from({ length: 40 }, (_, i) => i);
-  const people = Array.from({ length: 8 }, (_, i) => i);
-
-  return (
-    <>
-      {/* Stars */}
-      {stars.map((i) => (
-        <motion.div
-          key={i}
-          className="absolute text-yellow-300"
-          style={{
-            fontSize: Math.random() * 15 + 20,
-            left: Math.random() * window.innerWidth,
-            top: Math.random() * (window.innerHeight * 0.5),
-          }}
-          animate={{
-            opacity: [0.3, 1, 0.3],
-            scale: [0.8, 1.2, 0.8],
-          }}
-          transition={{
-            duration: Math.random() * 2 + 2,
-            repeat: Infinity,
-            delay: Math.random() * duration,
-          }}
-        >
-          ⭐
-        </motion.div>
-      ))}
-
-      {/* Crescent Moon */}
-      <motion.div
-        className="absolute top-20 right-20 text-8xl"
-        animate={{
-          rotate: [0, 10, -10, 0],
           scale: [1, 1.05, 1],
         }}
         transition={{
-          duration: 4,
+          duration: 18,
           repeat: Infinity,
+          ease: 'easeInOut',
+        }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-orange-900/20 via-transparent to-purple-900/10" />
+      
+      {/* Firework sparkles overlay */}
+      <div className="absolute inset-0">
+        {Array.from({ length: 40 }).map((_, i) => {
+          const positions = [
+            { x: '10%', y: '15%' },
+            { x: '90%', y: '20%' },
+            { x: '30%', y: '10%' },
+            { x: '70%', y: '25%' },
+            { x: '50%', y: '15%' },
+          ];
+          const pos = positions[i % positions.length];
+          
+          return (
+            <motion.div
+              key={i}
+              className="absolute"
+              style={{ left: pos.x, top: pos.y }}
+              initial={{ scale: 0, opacity: 1 }}
+              animate={{
+                scale: [0, 2, 0],
+                opacity: [1, 0.8, 0],
+              }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                delay: (i * 0.15) % 2,
+                ease: 'easeOut',
+              }}
+            >
+              <div className="w-20 h-20 rounded-full bg-gradient-radial from-yellow-400 via-orange-500 to-transparent blur-sm" />
+            </motion.div>
+          );
+        })}
+      </div>
+      
+      {/* Glowing diyas effect */}
+      <motion.div
+        className="absolute inset-0"
+        animate={{
+          opacity: [0.5, 0.8, 0.5],
+        }}
+        transition={{
+          duration: 3,
+          repeat: Infinity,
+          ease: 'easeInOut',
         }}
       >
-        🌙
+        <div className="absolute inset-0 bg-gradient-to-t from-orange-500/10 to-transparent" />
       </motion.div>
+    </motion.div>
+  );
+};
 
-      {/* People Greeting and Hugging */}
-      {people.map((i) => {
-        const positions = [
-          { bottom: '20%', left: '10%' },
-          { bottom: '25%', left: '25%' },
-          { bottom: '20%', right: '15%' },
-          { bottom: '30%', right: '30%' },
-          { bottom: '15%', left: '40%' },
-          { bottom: '35%', left: '60%' },
-          { bottom: '20%', right: '45%' },
-          { bottom: '25%', left: '80%' },
-        ];
-        const emojis = ['🤝', '🫂', '🙏', '👨‍👩‍👧‍👦', '👥', '🤗', '💚', '🕌'];
-        
-        return (
+// Eid Animation - Realistic Scene
+const EidAnimation = ({ offerText, duration }: { offerText: string | null; duration: number }) => {
+  return (
+    <motion.div
+      className="fixed inset-0 pointer-events-none z-50"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 1 }}
+    >
+      <motion.div
+        className="absolute inset-0 bg-cover bg-center"
+        style={{ backgroundImage: `url(${eidImg})` }}
+        animate={{
+          scale: [1, 1.06, 1],
+        }}
+        transition={{
+          duration: 22,
+          repeat: Infinity,
+          ease: 'easeInOut',
+        }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-b from-indigo-900/20 via-transparent to-purple-900/20" />
+      
+      {/* Twinkling stars overlay */}
+      <div className="absolute inset-0">
+        {Array.from({ length: 60 }).map((_, i) => (
           <motion.div
             key={i}
-            className="absolute text-5xl"
-            style={positions[i]}
+            className="absolute w-1 h-1 bg-yellow-200 rounded-full"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 60}%`,
+            }}
             animate={{
-              scale: [1, 1.2, 1],
-              y: [0, -10, 0],
+              opacity: [0.3, 1, 0.3],
+              scale: [0.8, 1.5, 0.8],
             }}
             transition={{
-              duration: 3,
+              duration: Math.random() * 3 + 2,
+              repeat: Infinity,
+              delay: Math.random() * 3,
+              ease: 'easeInOut',
+            }}
+          />
+        ))}
+      </div>
+      
+      {/* Lantern glow effect */}
+      <div className="absolute inset-0">
+        {Array.from({ length: 12 }).map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute w-16 h-16 rounded-full blur-xl"
+            style={{
+              left: `${(i * 8.33) % 100}%`,
+              top: `${Math.random() * 80 + 10}%`,
+              background: 'radial-gradient(circle, rgba(255,215,0,0.4) 0%, transparent 70%)',
+            }}
+            animate={{
+              opacity: [0.4, 0.8, 0.4],
+              scale: [1, 1.2, 1],
+            }}
+            transition={{
+              duration: 4,
               repeat: Infinity,
               delay: i * 0.3,
+              ease: 'easeInOut',
             }}
-          >
-            {emojis[i]}
-          </motion.div>
-        );
-      })}
-    </>
+          />
+        ))}
+      </div>
+    </motion.div>
   );
 };
 
