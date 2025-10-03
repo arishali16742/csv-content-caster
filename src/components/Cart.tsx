@@ -17,6 +17,7 @@ import MultiPackageBookingPopup from './MultiPackageBookingPopup';
 import { Textarea } from './ui/textarea';
 import { Input } from './ui/input';
 import { Loader2 } from 'lucide-react';
+import CouponBrowser from './CouponBrowser';
 
 interface CartItem {
   id: string;
@@ -75,6 +76,7 @@ const Cart = () => {
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [hasExistingCoupon, setHasExistingCoupon] = useState(false);
   const [cartCouponDetails, setCartCouponDetails] = useState<string | null>(null);
+  const [showCouponBrowser, setShowCouponBrowser] = useState(false);
 
   // Auto-scroll to bottom when conversations change
   useEffect(() => {
@@ -966,6 +968,12 @@ useEffect(() => {
   {isApplyingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : appliedCoupon ? 'Applied' : 'Apply'}
 </Button>
       </div>
+      <button 
+        onClick={() => setShowCouponBrowser(true)}
+        className="text-sm text-primary hover:underline"
+      >
+        No worries...browse coupons
+      </button>
       {couponMessage.text && (
         <p className={`text-sm ${couponMessage.type === 'error' ? 'text-destructive' : couponMessage.type === 'success' ? 'text-green-600' : 'text-muted-foreground'}`}>
           {couponMessage.text}
@@ -1335,6 +1343,15 @@ useEffect(() => {
         onOpenChange={setIsMultiBookingPopupOpen}
         cartItems={cartItems}
         onBookingComplete={handleBookingComplete}
+      />
+
+      <CouponBrowser
+        open={showCouponBrowser}
+        onOpenChange={setShowCouponBrowser}
+        onSelectCoupon={(code) => {
+          setCouponCode(code);
+          setShowCouponBrowser(false);
+        }}
       />
 
       <Footer />

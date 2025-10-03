@@ -30,6 +30,7 @@ const FestivalAnimation = () => {
           table: 'festival_animations'
         },
         () => {
+          console.log('Festival animation changed, reloading...');
           loadActiveAnimation();
         }
       )
@@ -41,18 +42,40 @@ const FestivalAnimation = () => {
   }, []);
 
   const loadActiveAnimation = async () => {
-    const now = new Date().toISOString();
+    const now = new Date();
+    console.log('Current time:', now.toISOString());
+    
     const { data, error } = await supabase
       .from('festival_animations' as any)
       .select('*')
-      .eq('is_active', true)
-      .lte('start_date', now)
-      .gte('end_date', now)
-      .single();
+      .eq('is_active', true);
 
-    if (data && !error) {
-      setAnimation(data as unknown as FestivalAnimationData);
+    console.log('All active animations:', data);
+    console.log('Query error:', error);
+
+    if (data && data.length > 0) {
+      // Filter animations that are currently active based on date range
+      const activeAnimation = data.find((anim: any) => {
+        const startDate = new Date(anim.start_date);
+        const endDate = new Date(anim.end_date);
+        const isInRange = startDate <= now && endDate >= now;
+        console.log(`Animation ${anim.festival_name}:`, {
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          isInRange
+        });
+        return isInRange;
+      });
+
+      if (activeAnimation) {
+        console.log('Active animation found:', activeAnimation);
+        setAnimation(activeAnimation as unknown as FestivalAnimationData);
+      } else {
+        console.log('No animation in date range');
+        setAnimation(null);
+      }
     } else {
+      console.log('No active animations found');
       setAnimation(null);
     }
   };
