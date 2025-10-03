@@ -23,6 +23,7 @@ const FestivalPopup = () => {
 
   useEffect(() => {
     const hasSeenPopup = sessionStorage.getItem('festival_popup_seen');
+    console.log('FestivalPopup mounted, hasSeenPopup:', hasSeenPopup);
     if (!hasSeenPopup) {
       loadActiveAnimation();
     }
@@ -50,22 +51,36 @@ const FestivalPopup = () => {
 
   const loadActiveAnimation = async () => {
     const now = new Date();
+    console.log('Loading active animation, current time:', now);
     
     const { data, error } = await supabase
       .from('festival_animations' as any)
       .select('*')
       .eq('is_active', true);
 
+    console.log('Festival animations data:', data);
+    console.log('Query error:', error);
+
     if (data && data.length > 0) {
       const activeAnimation = data.find((anim: any) => {
         const startDate = new Date(anim.start_date);
         const endDate = new Date(anim.end_date);
-        return startDate <= now && endDate >= now;
+        const isInRange = startDate <= now && endDate >= now;
+        console.log(`Animation ${anim.festival_name}:`, {
+          startDate,
+          endDate,
+          isInRange,
+          hasCoupon: !!anim.coupon_code
+        });
+        return isInRange;
       });
 
       if (activeAnimation && (activeAnimation as any).coupon_code) {
+        console.log('Setting active animation:', activeAnimation);
         setAnimation(activeAnimation as unknown as FestivalAnimationData);
         setIsOpen(true);
+      } else {
+        console.log('No active animation with coupon found');
       }
     }
   };
@@ -80,11 +95,28 @@ const FestivalPopup = () => {
       try {
         await navigator.clipboard.writeText(animation.coupon_code);
         setCopied(true);
-        toast.success('Coupon code copied!');
+        
+        // Add coupon to user_coupons table
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const expiresAt = new Date(animation.end_date);
+          
+          await supabase.from('user_coupons').insert({
+            user_id: user.id,
+            coupon_code: animation.coupon_code,
+            offer_title: animation.offer_text || animation.festival_name,
+            discount: '10%', // You can adjust this or get from animation data
+            expires_at: expiresAt.toISOString(),
+            used: false
+          });
+        }
+        
+        toast.success('Coupon code copied and added to your account!');
         setTimeout(() => {
           handleClose();
         }, 1000);
       } catch (err) {
+        console.error('Copy error:', err);
         toast.error('Failed to copy coupon code');
       }
     }

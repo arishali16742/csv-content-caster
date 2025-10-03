@@ -102,33 +102,40 @@ const FestivalAnimation = () => {
 
 // Christmas Animation - Snow and Santa
 const ChristmasAnimation = ({ offerText, duration }: { offerText: string | null; duration: number }) => {
-  const snowflakes = Array.from({ length: 100 }, (_, i) => i);
+  const snowflakes = Array.from({ length: 150 }, (_, i) => i);
 
   return (
     <>
-      {/* Snowflakes covering entire width */}
+      {/* Realistic Snowflakes covering entire width */}
       {snowflakes.map((i) => {
-        const startX = (i * (window.innerWidth / 100)) + Math.random() * 50;
+        const startX = Math.random() * window.innerWidth;
+        const size = Math.random() * 8 + 12;
+        const drift = Math.random() * 150 - 75;
+        
         return (
           <motion.div
             key={i}
-            className="absolute text-white"
-            style={{ fontSize: Math.random() * 10 + 15 }}
+            className="absolute"
+            style={{ 
+              fontSize: size,
+              filter: 'drop-shadow(0 0 2px rgba(255,255,255,0.8))',
+              left: startX
+            }}
             initial={{ 
               y: -50, 
-              x: startX,
-              opacity: Math.random() * 0.3 + 0.5,
+              opacity: Math.random() * 0.4 + 0.6,
               rotate: Math.random() * 360
             }}
             animate={{
               y: window.innerHeight + 50,
-              x: startX + Math.sin(i) * 100,
-              rotate: 360,
+              x: startX + drift,
+              rotate: [0, 360, 720],
+              opacity: [0.8, 1, 0.6, 1, 0.8],
             }}
             transition={{
-              duration: Math.random() * 5 + 8,
+              duration: Math.random() * 8 + 10,
               repeat: Infinity,
-              delay: Math.random() * 2,
+              delay: Math.random() * 5,
               ease: 'linear',
             }}
           >
@@ -137,18 +144,22 @@ const ChristmasAnimation = ({ offerText, duration }: { offerText: string | null;
         );
       })}
 
-      {/* Santa Sleigh */}
+      {/* Full Santa with Sleigh and Reindeer */}
       <motion.div
-        className="absolute top-20 text-6xl"
-        initial={{ x: -100 }}
-        animate={{ x: window.innerWidth + 100 }}
+        className="absolute text-7xl flex items-center gap-1"
+        style={{ top: '15%' }}
+        initial={{ x: -200 }}
+        animate={{ x: window.innerWidth + 200 }}
         transition={{
           duration: duration,
           repeat: Infinity,
           ease: 'linear',
         }}
       >
-        🎅🛷
+        <span>🦌</span>
+        <span>🦌</span>
+        <span>🛷</span>
+        <span>🎅</span>
       </motion.div>
     </>
   );
