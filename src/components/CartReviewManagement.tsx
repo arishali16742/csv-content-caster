@@ -36,6 +36,7 @@ interface FetchedCartItem {
     title: string;
     country: string;
     destinations: string[];
+    price: string;
   };
   profile?: {
     id: string;
@@ -152,6 +153,7 @@ const CartReviewManagement = () => {
             title: item.package_title,
             country: item.package_country,
             destinations: item.package_destinations,
+            price: item.package_price || '0',
           } : null,
           profile: item.profile_email ? {
             id: item.user_id,
@@ -644,19 +646,19 @@ const handleApplyDiscount = async () => {
   <h4 className="font-semibold text-md mb-2">Pricing Details</h4>
   <div className="text-sm space-y-1 pl-4 border-l-2">
     {(() => {
-      // Get original price directly from packages table or calculated value
+      // Get original price directly from packages table (the TRUE original price)
       let originalPrice = cartItem.total_price;
-      let couponPercentage = 0;
-      let couponDiscountAmount = 0;
-      let priceAfterCoupon = cartItem.total_price;
       
-      // If we have price_before_admin_discount, that's our starting point
-      if (cartItem.price_before_admin_discount) {
-        originalPrice = cartItem.price_before_admin_discount;
-        priceAfterCoupon = cartItem.price_before_admin_discount;
+      // Use packages table price as the actual original price
+      if (cartItem.packages?.price) {
+        originalPrice = parseInt(cartItem.packages.price.replace(/[₹,]/g, ''));
       }
       
-      // If coupon is applied, calculate the discount
+      let couponPercentage = 0;
+      let couponDiscountAmount = 0;
+      let priceAfterCoupon = originalPrice;
+      
+      // If coupon is applied, calculate the discount from original price
       if (cartItem.applied_coupon_details) {
         const couponMatch = cartItem.applied_coupon_details.match(/(\d+)%/);
         if (couponMatch) {

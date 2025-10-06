@@ -438,15 +438,38 @@ const Cart = () => {
 
   // Calculate original price for a single cart item - directly from packages table
   const getItemOriginalPrice = (item: CartItem) => {
-  if (!item.packages) return 0;
-  
-  // Use price_before_admin_discount if available (this represents original price before admin discount)
-  // Otherwise use the packages table price (total package cost)
-  const packagePrice = item.price_before_admin_discount || parseInt(item.packages.price.replace(/[₹,]/g, ''));
-  const visaCost = item.visa_cost || 0;
-  
-  return packagePrice + visaCost;
-};
+    if (!item.packages) return 0;
+    
+    // Always use the packages table price as the true original price
+    const packagePrice = parseInt(item.packages.price.replace(/[₹,]/g, ''));
+    const visaCost = item.visa_cost || 0;
+    
+    return packagePrice + visaCost;
+  };
+
+  // Calculate price after coupon (before admin discount)
+  const getItemPriceAfterCoupon = (item: CartItem) => {
+    if (!item.packages) return 0;
+    
+    const originalPrice = getItemOriginalPrice(item);
+    
+    // If coupon is applied, calculate the price after coupon
+    if (item.applied_coupon_details) {
+      const couponMatch = item.applied_coupon_details.match(/(\d+)%/);
+      if (couponMatch) {
+        const discountPercentage = parseInt(couponMatch[1], 10);
+        const discountAmount = (originalPrice * discountPercentage) / 100;
+        return originalPrice - discountAmount;
+      }
+    }
+    
+    // If no coupon but admin discount exists, use price_before_admin_discount
+    if (item.price_before_admin_discount) {
+      return item.price_before_admin_discount + (item.visa_cost || 0);
+    }
+    
+    return originalPrice;
+  };
 
   // Coupon logic from BookingPopup - UPDATED to save to cart items
   const handleApplyCoupon = async () => {
@@ -849,19 +872,24 @@ useEffect(() => {
                                     <p className="text-xs text-green-600 font-semibold">Discounts Applied!</p>
                                   </div>
                                   
-                                  {/* Original price */}
+                                  {/* Phase 1: Original price */}
                                   <div className="text-sm text-gray-500 line-through">
                                     ₹{formatIndianCurrency(itemOriginalPrice)}
                                   </div>
                                   
-                                  {/* Show coupon discount if applied */}
+                                  {/* Phase 2: Show coupon discount if applied */}
                                   {item.applied_coupon_details && (
-                                    <div className="text-xs text-blue-600">
-                                      Coupon: {item.applied_coupon_details}
-                                    </div>
+                                    <>
+                                      <div className="text-xs text-blue-600">
+                                        Coupon: {item.applied_coupon_details}
+                                      </div>
+                                      <div className="text-sm text-gray-600">
+                                        ₹{formatIndianCurrency(getItemPriceAfterCoupon(item))}
+                                      </div>
+                                    </>
                                   )}
                                   
-                                  {/* Show admin discount if applied */}
+                                  {/* Phase 3: Show admin discount if applied */}
                                   {item.price_before_admin_discount && item.price_before_admin_discount > item.total_price && (
                                     <div className="text-xs text-purple-600">
                                       Admin Discount Applied
@@ -1241,8 +1269,11 @@ useEffect(() => {
                   
                   {(() => {
                     const itemOriginalPrice = getItemOriginalPrice(selectedPackage);
+                    const itemPriceAfterCoupon = getItemPriceAfterCoupon(selectedPackage);
                     const itemCurrentPrice = selectedPackage.total_price + (selectedPackage.visa_cost || 0);
                     const hasDiscount = itemOriginalPrice > itemCurrentPrice;
+                    const hasCoupon = selectedPackage.applied_coupon_details;
+                    const hasAdminDiscount = selectedPackage.price_before_admin_discount && selectedPackage.price_before_admin_discount > selectedPackage.total_price;
                     
                     return hasDiscount ? (
                       <div className="space-y-1">
@@ -1250,13 +1281,29 @@ useEffect(() => {
                           <Tag className="h-4 w-4 text-green-600" />
                           <span className="text-sm text-green-600 font-semibold">Discount Applied!</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-500 line-through text-sm">
-                            ₹{formatIndianCurrency(itemOriginalPrice)}
-                          </span>
-                          <span className="text-2xl font-bold text-travel-primary">
-                            ₹{formatIndianCurrency(itemCurrentPrice)}
-                          </span>
+                        
+                        {/* Phase 1: Original Price */}
+                        <div className="text-gray-500 line-through text-sm">
+                          Original: ₹{formatIndianCurrency(itemOriginalPrice)}
+                        </div>
+                        
+                        {/* Phase 2: After Coupon */}
+                        {hasCoupon && (
+                          <div className="text-sm text-blue-600">
+                            After Coupon ({selectedPackage.applied_coupon_details}): ₹{formatIndianCurrency(itemPriceAfterCoupon)}
+                          </div>
+                        )}
+                        
+                        {/* Phase 3: After Admin Discount */}
+                        {hasAdminDiscount && (
+                          <div className="text-sm text-purple-600">
+                            Admin Discount Applied
+                          </div>
+                        )}
+                        
+                        {/* Final Price */}
+                        <div className="text-2xl font-bold text-travel-primary">
+                          Final: ₹{formatIndianCurrency(itemCurrentPrice)}
                         </div>
                       </div>
                     ) : (

@@ -3,6 +3,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { motion } from 'framer-motion';
 import santaImg from '@/assets/santa.png';
 import bellsImg from '@/assets/christmas-bells.png';
+import holiImg from '@/assets/holi-colors.png';
+import eidLanternImg from '@/assets/eid-lantern.png';
+import eidMosqueImg from '@/assets/eid-mosque.png';
 
 interface FestivalAnimationData {
   id: string;
@@ -201,6 +204,22 @@ const HoliAnimation = ({ offerText, duration }: { offerText: string | null; dura
 
   return (
     <>
+      {/* Holi image decorations at left and right corners */}
+      <div className="fixed top-0 left-0 w-64 h-64 pointer-events-none z-40">
+        <img 
+          src={holiImg} 
+          alt="Holi colors" 
+          className="w-full h-full object-contain"
+        />
+      </div>
+      <div className="fixed top-0 right-0 w-64 h-64 pointer-events-none z-40">
+        <img 
+          src={holiImg} 
+          alt="Holi colors" 
+          className="w-full h-full object-contain transform scale-x-[-1]"
+        />
+      </div>
+
       {/* Color powder splashes */}
       {splashes.map((i) => {
         const color = colors[i % colors.length];
@@ -346,6 +365,22 @@ const EidAnimation = ({ offerText, duration }: { offerText: string | null; durat
 
   return (
     <>
+      {/* Eid image decorations at left and right sides */}
+      <div className="fixed top-0 left-0 w-72 h-72 pointer-events-none z-40">
+        <img 
+          src={eidLanternImg} 
+          alt="Eid decoration" 
+          className="w-full h-full object-contain"
+        />
+      </div>
+      <div className="fixed top-0 right-0 w-80 h-80 pointer-events-none z-40">
+        <img 
+          src={eidMosqueImg} 
+          alt="Eid mosque" 
+          className="w-full h-full object-contain"
+        />
+      </div>
+
       {/* Stars */}
       {stars.map((i) => (
         <motion.div
