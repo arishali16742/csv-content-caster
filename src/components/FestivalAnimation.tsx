@@ -20,6 +20,19 @@ interface FestivalAnimationData {
 
 const FestivalAnimation = () => {
   const [animation, setAnimation] = useState<FestivalAnimationData | null>(null);
+  const [scrollOpacity, setScrollOpacity] = useState(1);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollPosition = window.scrollY;
+      const maxScroll = 300;
+      const newOpacity = Math.max(0.1, 1 - (scrollPosition / maxScroll));
+      setScrollOpacity(newOpacity);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     loadActiveAnimation();
@@ -89,13 +102,13 @@ const FestivalAnimation = () => {
   const renderAnimation = () => {
     switch (animation.animation_type) {
       case 'christmas':
-        return <ChristmasAnimation offerText={animation.offer_text} duration={animation.duration_seconds} />;
+        return <ChristmasAnimation offerText={animation.offer_text} duration={animation.duration_seconds} opacity={scrollOpacity} />;
       case 'holi':
-        return <HoliAnimation offerText={animation.offer_text} duration={animation.duration_seconds} />;
+        return <HoliAnimation offerText={animation.offer_text} duration={animation.duration_seconds} opacity={scrollOpacity} />;
       case 'diwali':
-        return <DiwaliAnimation offerText={animation.offer_text} duration={animation.duration_seconds} />;
+        return <DiwaliAnimation offerText={animation.offer_text} duration={animation.duration_seconds} opacity={scrollOpacity} />;
       case 'eid':
-        return <EidAnimation offerText={animation.offer_text} duration={animation.duration_seconds} />;
+        return <EidAnimation offerText={animation.offer_text} duration={animation.duration_seconds} opacity={scrollOpacity} />;
       default:
         return null;
     }
@@ -105,11 +118,11 @@ const FestivalAnimation = () => {
 };
 
 // Christmas Animation - Snowflakes overlay
-const ChristmasAnimation = ({ offerText, duration }: { offerText: string | null; duration: number }) => {
+const ChristmasAnimation = ({ offerText, duration, opacity }: { offerText: string | null; duration: number; opacity: number }) => {
   const snowflakes = Array.from({ length: 80 }, (_, i) => i);
 
   return (
-    <>
+    <div style={{ opacity }}>
       {/* Bell decorations at left and right edges */}
       <div className="fixed top-0 left-0 w-64 h-32 pointer-events-none z-40">
         <img 
@@ -193,17 +206,17 @@ const ChristmasAnimation = ({ offerText, duration }: { offerText: string | null;
           className="w-48 h-48 object-contain drop-shadow-2xl"
         />
       </motion.div>
-    </>
+    </div>
   );
 };
 
 // Holi Animation - Color splashes overlay
-const HoliAnimation = ({ offerText, duration }: { offerText: string | null; duration: number }) => {
+const HoliAnimation = ({ offerText, duration, opacity }: { offerText: string | null; duration: number; opacity: number }) => {
   const colors = ['#FF0080', '#00FF80', '#8000FF', '#FFFF00', '#00FFFF', '#FF4500', '#FF1493', '#32CD32'];
   const splashes = Array.from({ length: 40 }, (_, i) => i);
 
   return (
-    <>
+    <div style={{ opacity }}>
       {/* Holi image decorations at left and right corners */}
       <div className="fixed top-0 left-0 w-64 h-64 pointer-events-none z-40">
         <img 
@@ -259,12 +272,12 @@ const HoliAnimation = ({ offerText, duration }: { offerText: string | null; dura
           </motion.div>
         );
       })}
-    </>
+    </div>
   );
 };
 
 // Diwali Animation - Fireworks overlay
-const DiwaliAnimation = ({ offerText, duration }: { offerText: string | null; duration: number }) => {
+const DiwaliAnimation = ({ offerText, duration, opacity }: { offerText: string | null; duration: number; opacity: number }) => {
   const corners = [
     { x: '5%', y: '10%' },
     { x: '95%', y: '10%' },
@@ -276,7 +289,7 @@ const DiwaliAnimation = ({ offerText, duration }: { offerText: string | null; du
   ];
 
   return (
-    <>
+    <div style={{ opacity }}>
       {/* Firecrackers from corners */}
       {corners.map((corner, cornerIndex) => (
         <React.Fragment key={cornerIndex}>
@@ -354,17 +367,17 @@ const DiwaliAnimation = ({ offerText, duration }: { offerText: string | null; du
       >
         🪔
       </motion.div>
-    </>
+    </div>
   );
 };
 
 // Eid Animation - Stars and moon overlay
-const EidAnimation = ({ offerText, duration }: { offerText: string | null; duration: number }) => {
+const EidAnimation = ({ offerText, duration, opacity }: { offerText: string | null; duration: number; opacity: number }) => {
   const stars = Array.from({ length: 40 }, (_, i) => i);
   const lanterns = Array.from({ length: 8 }, (_, i) => i);
 
   return (
-    <>
+    <div style={{ opacity }}>
       {/* Eid image decorations at left and right sides */}
       <div className="fixed top-0 left-0 w-72 h-72 pointer-events-none z-40">
         <img 
@@ -454,7 +467,7 @@ const EidAnimation = ({ offerText, duration }: { offerText: string | null; durat
           </motion.div>
         );
       })}
-    </>
+    </div>
   );
 };
 

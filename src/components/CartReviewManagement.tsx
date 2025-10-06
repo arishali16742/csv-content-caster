@@ -646,52 +646,50 @@ const handleApplyDiscount = async () => {
   <h4 className="font-semibold text-md mb-2">Pricing Details</h4>
   <div className="text-sm space-y-1 pl-4 border-l-2">
     {(() => {
-      // Get original price directly from packages table (the TRUE original price)
-      let originalPrice = cartItem.total_price;
-      
-      // Use packages table price as the actual original price
+      // Get original price directly from packages table
+      let packageOriginalPrice = 0;
       if (cartItem.packages?.price) {
-        originalPrice = parseInt(cartItem.packages.price.replace(/[₹,]/g, ''));
+        packageOriginalPrice = parseInt(cartItem.packages.price.replace(/[₹,]/g, ''));
       }
       
-      let couponPercentage = 0;
-      let couponDiscountAmount = 0;
-      let priceAfterCoupon = originalPrice;
+      const visaCost = cartItem.visa_cost || 0;
+      const originalPriceTotal = packageOriginalPrice + visaCost;
       
-      // If coupon is applied, calculate the discount from original price
+      let couponPercentage = 0;
+      let priceAfterCoupon = packageOriginalPrice;
+      
+      // If coupon is applied, calculate the price after coupon
       if (cartItem.applied_coupon_details) {
         const couponMatch = cartItem.applied_coupon_details.match(/(\d+)%/);
         if (couponMatch) {
           couponPercentage = parseInt(couponMatch[1]);
-          // Coupon is applied to original price (package + visa)
-          couponDiscountAmount = ((originalPrice + (cartItem.visa_cost || 0)) * couponPercentage) / 100;
-          // After coupon, we reduce the package price portion only
-          priceAfterCoupon = originalPrice - (couponDiscountAmount * originalPrice / (originalPrice + (cartItem.visa_cost || 0)));
+          const couponDiscount = (packageOriginalPrice * couponPercentage) / 100;
+          priceAfterCoupon = packageOriginalPrice - couponDiscount;
         }
       }
-
-      const finalPrice = cartItem.total_price + (cartItem.visa_cost || 0);
+      
+      // Check if admin discount was applied
       const hasAdminDiscount = cartItem.price_before_admin_discount && 
                               cartItem.price_before_admin_discount !== cartItem.total_price;
       
-      const adminDiscountAmount = hasAdminDiscount ? 
-        priceAfterCoupon - cartItem.total_price : 0;
-      
       const adminDiscountPercent = hasAdminDiscount && cartItem.admin_discount ? 
         cartItem.admin_discount : 0;
+      
+      const finalPackagePrice = cartItem.total_price;
+      const finalPriceTotal = finalPackagePrice + visaCost;
 
       return (
         <>
-          <p>Original Price: ₹{Math.round(originalPrice + (cartItem.visa_cost || 0)).toLocaleString()}</p>
+          <p>Original Price: ₹{originalPriceTotal.toLocaleString()}</p>
           
           {cartItem.applied_coupon_details && couponPercentage > 0 && (
             <>
               <p>
                 <strong>Coupon: </strong>
                 <span className="font-bold text-blue-600">{cartItem.applied_coupon_details}</span>
-                <span> (-₹{Math.round(couponDiscountAmount).toLocaleString()})</span>
+                <span> (-₹{Math.round((packageOriginalPrice * couponPercentage) / 100).toLocaleString()})</span>
               </p>
-              <p>Price after coupon: ₹{Math.round(priceAfterCoupon + (cartItem.visa_cost || 0)).toLocaleString()}</p>
+              <p>Price after coupon: ₹{Math.round(priceAfterCoupon + visaCost).toLocaleString()}</p>
             </>
           )}
           
@@ -699,15 +697,13 @@ const handleApplyDiscount = async () => {
             <p>
               <strong>Admin Discount: </strong>
               <span className="font-bold text-purple-600">{adminDiscountPercent}%</span>
-              <span> (-₹{Math.round(adminDiscountAmount).toLocaleString()})</span>
+              <span> (-₹{Math.round(priceAfterCoupon - finalPackagePrice).toLocaleString()})</span>
             </p>
           )}
           
-          {cartItem.with_visa && <p>Visa Cost: ₹{(cartItem.visa_cost || 0).toLocaleString()}</p>}
-          
           {/* Final Price - always shown in green as the last item */}
           <p className="text-green-600 font-bold text-base">
-            Final Price: ₹{finalPrice.toLocaleString()}
+            Final Price: ₹{finalPriceTotal.toLocaleString()}
           </p>
         </>
       );
