@@ -4,12 +4,12 @@ import { Plane, Clock, Calendar } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 interface FlightSegment {
-  airline_code: string;
+  airline: string; // Changed from airline_code
   flight_number: string;
-  departure_airport: string;
-  departure_time: string;
-  arrival_airport: string;
-  arrival_time: string;
+  dep_airport: string; // Changed from departure_airport
+  dep_time: string; // Changed from departure_time
+  arr_airport: string; // Changed from arrival_airport
+  arr_time: string; // Changed from arrival_time
   duration: string;
 }
 
@@ -85,8 +85,8 @@ const FlightDetails: React.FC<FlightDetailsProps> = ({
       </div>
 
       {journey.segments.map((segment, index) => {
-        const departure = formatDateTime(segment.departure_time);
-        const arrival = formatDateTime(segment.arrival_time);
+        const departure = formatDateTime(segment.dep_time); // Changed from departure_time
+        const arrival = formatDateTime(segment.arr_time); // Changed from arrival_time
         
         return (
           <div key={index} className="border rounded-lg p-4 bg-gray-50">
@@ -94,7 +94,7 @@ const FlightDetails: React.FC<FlightDetailsProps> = ({
               <div className="flex items-center gap-2">
                 <Plane className="h-5 w-5 text-blue-600" />
                 <span className="font-semibold text-gray-900">
-                  {segment.airline_code} {segment.flight_number}
+                  {segment.airline} {segment.flight_number} {/* Changed from airline_code */}
                 </span>
               </div>
               <span className="text-sm text-gray-600">
@@ -107,7 +107,7 @@ const FlightDetails: React.FC<FlightDetailsProps> = ({
                 <div className="text-2xl font-bold text-gray-900">{departure.time}</div>
                 <div className="text-sm text-gray-600">{departure.date}</div>
                 <div className="text-sm font-medium text-gray-900 mt-1">
-                  {segment.departure_airport}
+                  {segment.dep_airport} {/* Changed from departure_airport */}
                 </div>
               </div>
 
@@ -122,7 +122,7 @@ const FlightDetails: React.FC<FlightDetailsProps> = ({
                 <div className="text-2xl font-bold text-gray-900">{arrival.time}</div>
                 <div className="text-sm text-gray-600">{arrival.date}</div>
                 <div className="text-sm font-medium text-gray-900 mt-1">
-                  {segment.arrival_airport}
+                  {segment.arr_airport} {/* Changed from arrival_airport */}
                 </div>
               </div>
             </div>

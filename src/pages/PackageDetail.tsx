@@ -1023,103 +1023,161 @@ const getImageData = (url: string): Promise<string> => {
     return visaRates[visaDestination][visaDuration] || 0;
   };
 
-  const fetchFlightData = async () => {
-    if (!flightSource || !selectedDate || !packageData) {
-      return;
-    }
+const fetchFlightData = async () => {
+  if (!flightSource || !selectedDate || !packageData) {
+    return;
+  }
 
-    setLoadingFlights(true);
-    setFlightData(null);
+  setLoadingFlights(true);
+  setFlightData(null);
 
+  try {
+    let destinationIATA = "BOM"; // Default fallback
+    let sourceIATA = flightSource.trim().toUpperCase();
+
+    // Query IATA table to get destination IATA code
     try {
-      // Query IATA table to get destination IATA code
+      // Build search queries for each destination
+      const destinationQueries = packageData.destinations.map(dest => 
+        `destinations.ilike.%${dest}%`
+      );
+      
       const { data: destinationIataData, error: destinationError } = await supabase
         .from('iata')
         .select('iata, destinations')
-        .or(packageData.destinations.map(dest => `destinations.ilike.%${dest}%`).join(','))
-        .single();
+        .or(destinationQueries.join(','))
+        .limit(1); // Just get the first match
 
-      if (destinationError || !destinationIataData) {
-        console.error('Error fetching destination IATA code:', destinationError);
-        toast({
-          title: "Destination Not Found",
-          description: "Could not find airport code for destination",
-          variant: "destructive",
-        });
-        return;
+      if (!destinationError && destinationIataData && destinationIataData.length > 0) {
+        destinationIATA = destinationIataData[0].iata;
+        console.log('Found destination IATA:', destinationIATA, 'for destinations:', packageData.destinations, 'from data:', destinationIataData[0]);
+      } else {
+        console.warn('Could not find destination IATA, using default:', destinationIATA, 'Error:', destinationError);
       }
+    } catch (destinationLookupError) {
+      console.warn('Destination IATA lookup failed, using default:', destinationIATA, 'Error:', destinationLookupError);
+    }
 
-      const destinationIATA = destinationIataData.iata;
-      
-      // Also get source IATA code if user entered a city name
-      let sourceIATA = flightSource.trim().toUpperCase();
-      
+    // Look up source IATA code
+    try {
       // If source is not a 3-letter code, try to look it up
       if (sourceIATA.length !== 3) {
-        const { data: sourceIataData } = await supabase
+        const { data: sourceIataData, error: sourceError } = await supabase
+          .from('iata')
+          .select('iata, destinations')
+          .or(`destinations.ilike.%${flightSource}%`)
+          .limit(1);
+        
+        if (!sourceError && sourceIataData && sourceIataData.length > 0) {
+          sourceIATA = sourceIataData[0].iata;
+          console.log('Found source IATA:', sourceIATA, 'for source:', flightSource, 'from data:', sourceIataData[0]);
+        } else {
+          console.warn('Could not find source IATA for:', flightSource, 'using as-is:', sourceIATA, 'Error:', sourceError);
+          // Apply fallback for common Indian cities
+          if (flightSource.toLowerCase().includes('delhi')) {
+            sourceIATA = 'DEL';
+          } else if (flightSource.toLowerCase().includes('mumbai')) {
+            sourceIATA = 'BOM';
+          } else if (flightSource.toLowerCase().includes('chennai')) {
+            sourceIATA = 'MAA';
+          } else if (flightSource.toLowerCase().includes('kolkata')) {
+            sourceIATA = 'CCU';
+          } else if (flightSource.toLowerCase().includes('bangalore') || flightSource.toLowerCase().includes('bengaluru')) {
+            sourceIATA = 'BLR';
+          } else if (flightSource.toLowerCase().includes('hyderabad')) {
+            sourceIATA = 'HYD';
+          }
+          console.log('Using fallback source IATA:', sourceIATA);
+        }
+      } else {
+        // Source is already a 3-letter code, validate it exists
+        const { data: sourceIataData, error: sourceError } = await supabase
           .from('iata')
           .select('iata')
-          .ilike('destinations', `%${flightSource}%`)
-          .single();
+          .eq('iata', sourceIATA)
+          .limit(1);
         
-        if (sourceIataData) {
-          sourceIATA = sourceIataData.iata;
+        if (!sourceError && sourceIataData && sourceIataData.length > 0) {
+          console.log('Validated source IATA:', sourceIATA);
+        } else {
+          console.warn('Source IATA code not found in database:', sourceIATA);
         }
       }
-
-      // Format date to YYYY-MM-DD
-      const departureDate = format(selectedDate, 'yyyy-MM-dd');
-      
-      // Get duration from selected duration (e.g., "3" becomes "3 days")
-      const duration = `${selectedDuration} days`;
-
-      // Build API URL
-      const params = new URLSearchParams({
-        origin: sourceIATA,
-        destination: destinationIATA,
-        departure_date: departureDate,
-        duration: duration
-      });
-
-      console.log('Fetching flights with params:', params.toString());
-      console.log('Source:', sourceIATA, 'Destination:', destinationIATA);
-      
-      const response = await fetch(`${flightApiUrl}/flight-price?${params.toString()}`);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Flight API error:', errorText);
-        throw new Error('Failed to fetch flight data');
+    } catch (sourceLookupError) {
+      console.warn('Source IATA lookup failed, using:', sourceIATA, 'Error:', sourceLookupError);
+      // Apply the same fallback logic
+      if (flightSource.toLowerCase().includes('delhi')) {
+        sourceIATA = 'DEL';
+      } else if (flightSource.toLowerCase().includes('mumbai')) {
+        sourceIATA = 'BOM';
+      } else if (flightSource.toLowerCase().includes('chennai')) {
+        sourceIATA = 'MAA';
+      } else if (flightSource.toLowerCase().includes('kolkata')) {
+        sourceIATA = 'CCU';
+      } else if (flightSource.toLowerCase().includes('bangalore') || flightSource.toLowerCase().includes('bengaluru')) {
+        sourceIATA = 'BLR';
+      } else if (flightSource.toLowerCase().includes('hyderabad')) {
+        sourceIATA = 'HYD';
       }
+    }
 
-      const data = await response.json();
-      
-      if (data.message) {
-        toast({
-          title: "No Flights Found",
-          description: data.message,
-          variant: "destructive",
-        });
-        setFlightData(null);
-      } else {
-        setFlightData(data);
-        toast({
-          title: "Flights Found!",
-          description: "Flight details loaded successfully",
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching flight data:', error);
+    // Format date to YYYY-MM-DD
+    const departureDate = format(selectedDate, 'yyyy-MM-dd');
+    
+    // Get duration from selected duration (e.g., "3" becomes "3 days")
+    const duration = `${selectedDuration} days`;
+
+    // Build API URL
+    const params = new URLSearchParams({
+      origin: sourceIATA,
+      destination: destinationIATA,
+      departure_date: departureDate,
+      duration: duration
+    });
+
+    console.log('Final flight search params:', {
+      source: sourceIATA,
+      destination: destinationIATA,
+      date: departureDate,
+      duration: duration
+    });
+    
+    const response = await fetch(`${flightApiUrl}/flight-price?${params.toString()}`);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Flight API error:', errorText);
+      throw new Error('Failed to fetch flight data');
+    }
+
+    const data = await response.json();
+    
+    if (data.message) {
       toast({
-        title: "Flight Search Failed",
-        description: "Please check if the API is running and destinations are valid",
+        title: "No Flights Found",
+        description: data.message,
         variant: "destructive",
       });
       setFlightData(null);
-    } finally {
-      setLoadingFlights(false);
+    } else {
+      setFlightData(data);
+      toast({
+        title: "Flights Found!",
+        description: "Flight details loaded successfully",
+      });
     }
-  };
+  } catch (error) {
+    console.error('Error fetching flight data:', error);
+    toast({
+      title: "Flight Search Failed",
+      description: "Please check if the API is running and destinations are valid",
+      variant: "destructive",
+    });
+    setFlightData(null);
+  } finally {
+    setLoadingFlights(false);
+  }
+};
 
   // Auto-fetch flights when date is selected and source is provided
   useEffect(() => {
