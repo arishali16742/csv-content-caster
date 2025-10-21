@@ -1,4 +1,6 @@
--- Create IATA codes table for flight search mapping
+-- Run this SQL in Cloud > Database to create the IATA table
+
+-- Create IATA codes table for flight search
 CREATE TABLE IF NOT EXISTS public.iata (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   destinations text NOT NULL UNIQUE,
@@ -10,7 +12,7 @@ CREATE TABLE IF NOT EXISTS public.iata (
 -- Enable RLS
 ALTER TABLE public.iata ENABLE ROW LEVEL SECURITY;
 
--- Create policy for public read access (anyone can search for IATA codes)
+-- Create policy for public read access
 CREATE POLICY "Allow public read access to iata"
   ON public.iata
   FOR SELECT
@@ -25,11 +27,11 @@ CREATE POLICY "Allow authenticated users to manage iata"
   USING (true)
   WITH CHECK (true);
 
--- Create indexes for faster lookups
+-- Create index for faster lookups
 CREATE INDEX idx_iata_destinations ON public.iata(destinations);
 CREATE INDEX idx_iata_iata ON public.iata(iata);
 
--- Insert initial sample data
+-- Insert sample data
 INSERT INTO public.iata (destinations, country, iata) VALUES
 ('Ravello;Amalfi;Positano', 'Italy', 'NAP'),
 ('Positano;Ravello;Amalfi', 'Italy', 'NAP'),
