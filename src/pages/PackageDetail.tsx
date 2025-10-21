@@ -1032,11 +1032,39 @@ const getImageData = (url: string): Promise<string> => {
     setFlightData(null);
 
     try {
-      // Get destination IATA code - for now using BOM as default
-      // TODO: Query IATA table once it's set up in database
-      const destinationIATA = "BOM"; // Will be dynamic once IATA table is populated
-      const sourceIATA = flightSource.trim();
+      // Get destination IATA code from the database
+      let destinationIATA = "BOM"; // default fallback
+      let sourceIATA = flightSource.trim();
       
+      // Create destination string from package destinations
+      const destinationString = packageData.destinations.join(';');
+      
+      // Query IATA table for destination
+      const { data: destData, error: destError } = await supabase
+        .from('iata')
+        .select('iata')
+        .eq('destinations', destinationString)
+        .maybeSingle();
+      
+      if (!destError && destData) {
+        destinationIATA = destData.iata;
+        console.log('Found destination IATA:', destinationIATA, 'for', destinationString);
+      } else {
+        console.log('No IATA mapping found for destination:', destinationString, 'using default BOM');
+      }
+
+      // Query IATA table for source (check if user entered a city name)
+      const { data: sourceData, error: sourceError } = await supabase
+        .from('iata')
+        .select('iata, destinations')
+        .ilike('destinations', `%${flightSource.trim()}%`)
+        .maybeSingle();
+      
+      if (!sourceError && sourceData) {
+        sourceIATA = sourceData.iata;
+        console.log('Found source IATA:', sourceIATA, 'for', flightSource);
+      }
+
       // Format date to YYYY-MM-DD
       const departureDate = format(selectedDate, 'yyyy-MM-dd');
       
