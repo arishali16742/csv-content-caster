@@ -1032,11 +1032,41 @@ const getImageData = (url: string): Promise<string> => {
     setFlightData(null);
 
     try {
-      // Get destination IATA code - for now using BOM as default
-      // TODO: Query IATA table once it's set up in database
-      const destinationIATA = "BOM"; // Will be dynamic once IATA table is populated
-      const sourceIATA = flightSource.trim();
+      // Query IATA table to get destination IATA code
+      const { data: destinationIataData, error: destinationError } = await supabase
+        .from('iata')
+        .select('iata, destinations')
+        .or(packageData.destinations.map(dest => `destinations.ilike.%${dest}%`).join(','))
+        .single();
+
+      if (destinationError || !destinationIataData) {
+        console.error('Error fetching destination IATA code:', destinationError);
+        toast({
+          title: "Destination Not Found",
+          description: "Could not find airport code for destination",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const destinationIATA = destinationIataData.iata;
       
+      // Also get source IATA code if user entered a city name
+      let sourceIATA = flightSource.trim().toUpperCase();
+      
+      // If source is not a 3-letter code, try to look it up
+      if (sourceIATA.length !== 3) {
+        const { data: sourceIataData } = await supabase
+          .from('iata')
+          .select('iata')
+          .ilike('destinations', `%${flightSource}%`)
+          .single();
+        
+        if (sourceIataData) {
+          sourceIATA = sourceIataData.iata;
+        }
+      }
+
       // Format date to YYYY-MM-DD
       const departureDate = format(selectedDate, 'yyyy-MM-dd');
       
@@ -1052,6 +1082,8 @@ const getImageData = (url: string): Promise<string> => {
       });
 
       console.log('Fetching flights with params:', params.toString());
+      console.log('Source:', sourceIATA, 'Destination:', destinationIATA);
+      
       const response = await fetch(`${flightApiUrl}/flight-price?${params.toString()}`);
       
       if (!response.ok) {
@@ -1080,7 +1112,7 @@ const getImageData = (url: string): Promise<string> => {
       console.error('Error fetching flight data:', error);
       toast({
         title: "Flight Search Failed",
-        description: "Please check if the API is running at https://tour-travel-292283352371.asia-south1.run.app",
+        description: "Please check if the API is running and destinations are valid",
         variant: "destructive",
       });
       setFlightData(null);
