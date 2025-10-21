@@ -395,8 +395,8 @@ useEffect(() => {
     }
     
     // If flights are included, try to use live price
-    if (flightData && flightData.total_price) {
-      return withoutFlightsPrice + flightData.total_price;
+    if (flightData && flightData.total_price_in_inr) {
+      return withoutFlightsPrice + flightData.total_price_in_inr;
     }
     
     // Fallback to default with_flights price if live price not available
