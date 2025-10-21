@@ -4,12 +4,12 @@ import { Plane, Clock, Calendar } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 interface FlightSegment {
-  airline: string; // Changed from airline_code
+  airline: string;
   flight_number: string;
-  dep_airport: string; // Changed from departure_airport
-  dep_time: string; // Changed from departure_time
-  arr_airport: string; // Changed from arrival_airport
-  arr_time: string; // Changed from arrival_time
+  dep_airport: string;
+  dep_time: string;
+  arr_airport: string;
+  arr_time: string;
   duration: string;
 }
 
@@ -38,7 +38,6 @@ const FlightDetails: React.FC<FlightDetailsProps> = ({
   destinationName
 }) => {
   const formatDuration = (duration: string) => {
-    // Duration is in ISO 8601 format like "PT2H30M"
     const hours = duration.match(/(\d+)H/);
     const minutes = duration.match(/(\d+)M/);
     return `${hours ? hours[1] + 'h ' : ''}${minutes ? minutes[1] + 'm' : ''}`;
@@ -47,7 +46,6 @@ const FlightDetails: React.FC<FlightDetailsProps> = ({
   const formatDateTime = (dateTime: string) => {
     try {
       const date = new Date(dateTime);
-      // Check if date is valid
       if (isNaN(date.getTime())) {
         return {
           date: 'Invalid Date',
@@ -67,14 +65,17 @@ const FlightDetails: React.FC<FlightDetailsProps> = ({
     }
   };
 
-  const renderJourney = (journey: Journey, title: string, showRoute: boolean = false) => (
+  const renderJourney = (journey: Journey, title: string, isOutbound: boolean = true) => (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h4 className="font-semibold text-lg">{title}</h4>
-          {showRoute && sourceName && destinationName && (
+          {sourceName && destinationName && (
             <p className="text-sm text-gray-600 mt-1">
-              {sourceName} → {destinationName}
+              {isOutbound 
+                ? `${sourceName} → ${destinationName}`
+                : `${destinationName} → ${sourceName}`
+              }
             </p>
           )}
         </div>
@@ -85,8 +86,8 @@ const FlightDetails: React.FC<FlightDetailsProps> = ({
       </div>
 
       {journey.segments.map((segment, index) => {
-        const departure = formatDateTime(segment.dep_time); // Changed from departure_time
-        const arrival = formatDateTime(segment.arr_time); // Changed from arrival_time
+        const departure = formatDateTime(segment.dep_time);
+        const arrival = formatDateTime(segment.arr_time);
         
         return (
           <div key={index} className="border rounded-lg p-4 bg-gray-50">
@@ -94,7 +95,7 @@ const FlightDetails: React.FC<FlightDetailsProps> = ({
               <div className="flex items-center gap-2">
                 <Plane className="h-5 w-5 text-blue-600" />
                 <span className="font-semibold text-gray-900">
-                  {segment.airline} {segment.flight_number} {/* Changed from airline_code */}
+                  {segment.airline} {segment.flight_number}
                 </span>
               </div>
               <span className="text-sm text-gray-600">
@@ -107,7 +108,7 @@ const FlightDetails: React.FC<FlightDetailsProps> = ({
                 <div className="text-2xl font-bold text-gray-900">{departure.time}</div>
                 <div className="text-sm text-gray-600">{departure.date}</div>
                 <div className="text-sm font-medium text-gray-900 mt-1">
-                  {segment.dep_airport} {/* Changed from departure_airport */}
+                  {segment.dep_airport}
                 </div>
               </div>
 
@@ -122,7 +123,7 @@ const FlightDetails: React.FC<FlightDetailsProps> = ({
                 <div className="text-2xl font-bold text-gray-900">{arrival.time}</div>
                 <div className="text-sm text-gray-600">{arrival.date}</div>
                 <div className="text-sm font-medium text-gray-900 mt-1">
-                  {segment.arr_airport} {/* Changed from arrival_airport */}
+                  {segment.arr_airport}
                 </div>
               </div>
             </div>
@@ -158,7 +159,7 @@ const FlightDetails: React.FC<FlightDetailsProps> = ({
         {returnJourney && (
           <>
             <div className="border-t pt-4" />
-            {renderJourney(returnJourney, 'Return Flight', true)}
+            {renderJourney(returnJourney, 'Return Flight', false)}
           </>
         )}
 
