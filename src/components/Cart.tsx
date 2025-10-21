@@ -402,18 +402,10 @@ const Cart = () => {
   }, 0);
 };
 
-  // Calculate original price without any discounts - directly from packages table
+  // Calculate original price per item using getItemOriginalPrice (pre-coupon/current discounts)
   const getOriginalPrice = () => {
-  return cartItems.reduce((total, item) => {
-    if (!item.packages) return total;
-    
-    // Use the direct package price from the packages table (this is the total package cost)
-    const packagePrice = parseInt(item.packages.price.replace(/[₹,]/g, '') || '0');
-    const visaCost = item.visa_cost || 0;
-    
-    return total + packagePrice + visaCost;
-  }, 0);
-};
+    return cartItems.reduce((total, item) => total + getItemOriginalPrice(item), 0);
+  };
 
   const formatIndianCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -442,40 +434,61 @@ const Cart = () => {
     if (!item.packages) return 0;
     
     const visaCost = item.visa_cost || 0;
-    
-    // Always use price_before_admin_discount as the original price if available
-    // This is the actual price shown when user adds to cart (before any discounts)
+
+    // Prefer explicit original captured at add-to-cart time
     if (item.price_before_admin_discount) {
       return item.price_before_admin_discount + visaCost;
     }
-    
-    // Fallback: Use package original_price (with flights) if no price_before_admin_discount
-    const originalPrice = parseInt(item.packages.original_price?.replace(/[₹,]/g, '') || item.packages.price.replace(/[₹,]/g, ''));
-    return originalPrice + visaCost;
+
+    // Parse package prices
+    const pkgPrice = parseInt(item.packages.price.replace(/[₹,]/g, '') || '0');
+    const pkgOriginal = parseInt(
+      item.packages.original_price?.replace(/[₹,]/g, '') || item.packages.price.replace(/[₹,]/g, '')
+    );
+    const ratio = pkgPrice > 0 ? (pkgOriginal / pkgPrice) : 1;
+
+    // Recover pre-coupon package portion if a coupon is applied
+    let basePackagePortion = item.total_price; // package portion only (visa excluded)
+    if (item.applied_coupon_details) {
+      const match = item.applied_coupon_details.match(/(\d+)%/);
+      if (match) {
+        const pct = parseInt(match[1], 10) / 100;
+        if (pct >= 0 && pct < 1) {
+          basePackagePortion = Math.round(item.total_price / (1 - pct));
+        }
+      }
+    }
+
+    // Without flights: derive original using discount ratio
+    if (item.with_flights === false) {
+      const originalWithoutFlights = Math.round(basePackagePortion * ratio);
+      return originalWithoutFlights + visaCost;
+    }
+
+    // With flights (or unknown): use package original (with flights)
+    return pkgOriginal + visaCost;
   };
 
-  // Calculate price after coupon (before admin discount)
+  // Return the pre-coupon current price (base used for coupon), not the original MRP
   const getItemPriceAfterCoupon = (item: CartItem) => {
     if (!item.packages) return 0;
-    
-    const originalPrice = getItemOriginalPrice(item);
-    
-    // If coupon is applied, calculate the price after coupon
+
+    const visaCost = item.visa_cost || 0;
+
     if (item.applied_coupon_details) {
       const couponMatch = item.applied_coupon_details.match(/(\d+)%/);
       if (couponMatch) {
-        const discountPercentage = parseInt(couponMatch[1], 10);
-        const discountAmount = (originalPrice * discountPercentage) / 100;
-        return originalPrice - discountAmount;
+        const pct = parseInt(couponMatch[1], 10) / 100;
+        if (pct >= 0 && pct < 1) {
+          const discountedTotal = item.total_price + visaCost; // current stored total after coupon
+          // Recover pre-coupon current total to display alongside coupon info
+          return Math.round(discountedTotal / (1 - pct));
+        }
       }
     }
-    
-    // If no coupon but admin discount exists, use price_before_admin_discount
-    if (item.price_before_admin_discount) {
-      return item.price_before_admin_discount + (item.visa_cost || 0);
-    }
-    
-    return originalPrice;
+
+    // If no coupon, the base is just the current price (package + visa)
+    return item.total_price + visaCost;
   };
 
   // Coupon logic from BookingPopup - UPDATED to save to cart items
@@ -558,64 +571,73 @@ const handleRemoveCoupon = async () => {
   setIsApplyingCoupon(true);
   
   try {
-    // Reset all cart items to remove coupon details
     const updates = cartItems.map(async (item) => {
       if (!item.packages) return item;
-      
-      // Get the original package price per person per day
-      const packagePrice = parseInt(item.packages.price.replace(/[₹,]/g, '') || '0');
-      const members = item.members || 1;
-      const days = item.days;
-      
-      // Calculate original price correctly: (package price × days × members) + visa cost
-      const packageTotal = packagePrice  * members;
-      const visaCost = item.visa_cost || 0;
-      const originalTotalPrice = packageTotal + visaCost;
-      
-      // But we need to store only the package portion in total_price (without visa cost)
-      const packagePortion = packagePrice  * members;
-      
-      const { error } = await supabase
-        .from('cart')
-        .update({
-          total_price: packagePortion, // Store only package portion
-          applied_coupon_details: null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', item.id);
 
-      if (error) throw error;
+      let percentage = 0;
+      const match = item.applied_coupon_details?.match(/(\d+)%/);
+      if (match) {
+        percentage = parseInt(match[1], 10);
+      } else if (appliedCoupon?.discount) {
+        const m2 = appliedCoupon.discount.match(/(\d+)%/);
+        if (m2) percentage = parseInt(m2[1], 10);
+      }
 
-      return {
-        ...item,
-        total_price: packagePortion, // Update local state with package portion only
-        applied_coupon_details: null
-      };
+      if (percentage > 0 && percentage < 100) {
+        const visaCost = item.visa_cost || 0;
+        const discountedTotal = item.total_price + visaCost; // what we currently store/display
+        const baseTotalBeforeCoupon = Math.round(discountedTotal / (1 - percentage / 100));
+        const newPackagePortion = Math.max(0, baseTotalBeforeCoupon - visaCost);
+
+        const { error } = await supabase
+          .from('cart')
+          .update({
+            total_price: newPackagePortion,
+            applied_coupon_details: null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', item.id);
+
+        if (error) throw error;
+
+        return {
+          ...item,
+          total_price: newPackagePortion,
+          applied_coupon_details: null
+        };
+      } else {
+        // No valid percentage found; just clear coupon flag
+        const { error } = await supabase
+          .from('cart')
+          .update({
+            applied_coupon_details: null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', item.id);
+        if (error) throw error;
+        return { ...item, applied_coupon_details: null };
+      }
     });
 
     const updatedItems = await Promise.all(updates);
     setCartItems(updatedItems);
-    
-    // Reset coupon state
     setAppliedCoupon(null);
     setCouponCode('');
     setCouponMessage({ text: 'Coupon removed successfully.', type: 'success' });
     setCartCouponDetails(null);
     setHasExistingCoupon(false);
-    
-    // Reset final price to original total (including visa costs)
+
     const totalPrice = updatedItems.reduce((total, item) => {
       const itemTotal = item.total_price + (item.visa_cost || 0);
       return total + itemTotal;
     }, 0);
     setFinalPrice(totalPrice);
-    
+
     toast({
       title: 'Coupon Removed',
       description: 'The coupon has been removed from your cart.',
     });
 
-    // Clear success message after 3 seconds
     setTimeout(() => {
       setCouponMessage({ text: '', type: 'info' });
     }, 3000);

@@ -78,16 +78,37 @@ const MultiPackageBookingPopup = ({
     if (!item.packages) return item.total_price;
     
     const visaCost = item.visa_cost || 0;
-    
-    // Always use price_before_admin_discount as the original price if available
-    // This is the actual price shown when user adds to cart (before any discounts)
+
+    // Prefer explicit original captured at add-to-cart time
     if (item.price_before_admin_discount) {
       return item.price_before_admin_discount + visaCost;
     }
-    
-    // Fallback: Use package original_price (with flights) if no price_before_admin_discount
-    const originalPrice = parseInt(item.packages.original_price?.replace(/[₹,]/g, '') || item.packages.price.replace(/[₹,]/g, ''));
-    return originalPrice + visaCost;
+
+    // Parse package prices
+    const pkgPrice = parseInt(item.packages.price.replace(/[₹,]/g, '') || '0');
+    const pkgOriginal = parseInt(
+      item.packages.original_price?.replace(/[₹,]/g, '') || item.packages.price.replace(/[₹,]/g, '')
+    );
+    const ratio = pkgPrice > 0 ? (pkgOriginal / pkgPrice) : 1;
+
+    // Recover pre-coupon package portion if a coupon is applied
+    let basePackagePortion = item.total_price; // package portion only (visa excluded)
+    if (item.applied_coupon_details) {
+      const match = item.applied_coupon_details.match(/(\d+)%/);
+      if (match) {
+        const pct = parseInt(match[1], 10) / 100;
+        if (pct >= 0 && pct < 1) {
+          basePackagePortion = Math.round(item.total_price / (1 - pct));
+        }
+      }
+    }
+
+    if (item.with_flights === false) {
+      const originalWithoutFlights = Math.round(basePackagePortion * ratio);
+      return originalWithoutFlights + visaCost;
+    }
+
+    return pkgOriginal + visaCost;
   };
 
   const getSelectedItems = () => {
