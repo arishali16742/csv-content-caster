@@ -41,10 +41,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Input } from '@/components/ui/input';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import BookingPopup from '../components/BookingPopup';
 import VideoSection from '../components/VideoSection';
+import FlightDetails from '../components/FlightDetails';
 import jsPDF from 'jspdf';
 
 interface Package {
@@ -185,7 +187,12 @@ const PackageDetail = () => {
   const [visaDuration, setVisaDuration] = useState('15 Days');
   const [visaMembers, setVisaMembers] = useState(1);
   const [addedVisaCost, setAddedVisaCost] = useState(0);
-const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [flightSource, setFlightSource] = useState('');
+  const [flightData, setFlightData] = useState<any>(null);
+  const [loadingFlights, setLoadingFlights] = useState(false);
+  // const [flightApiUrl, setFlightApiUrl] = useState('http://localhost:8000');
+  const [flightApiUrl, setFlightApiUrl] = useState('https://tour-travel-292283352371.asia-south1.run.app');
 
 // Move images declaration here so it's available for useEffect below
 const images = packageData?.gallery_images && packageData.gallery_images.length > 0 
@@ -1016,6 +1023,77 @@ const getImageData = (url: string): Promise<string> => {
     return visaRates[visaDestination][visaDuration] || 0;
   };
 
+  const fetchFlightData = async () => {
+    if (!flightSource || !selectedDate || !packageData) {
+      return;
+    }
+
+    setLoadingFlights(true);
+    setFlightData(null);
+
+    try {
+      // Get destination from package (use first destination or country)
+      // const destination = packageData.destinations[0] || packageData.country;
+      const destination = "BOM"
+      // Format date to YYYY-MM-DD
+      const departureDate = format(selectedDate, 'yyyy-MM-dd');
+      
+      // Get duration from selected duration (e.g., "3" becomes "3 days")
+      const duration = `${selectedDuration} days`;
+
+      // Build API URL
+      const params = new URLSearchParams({
+        origin: flightSource.trim(),
+        destination: destination.trim(),
+        departure_date: departureDate,
+        duration: duration
+      });
+
+      console.log('Fetching flights with params:', params.toString());
+      const response = await fetch(`${flightApiUrl}/flight-price?${params.toString()}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Flight API error:', errorText);
+        throw new Error('Failed to fetch flight data');
+      }
+
+      const data = await response.json();
+      
+      if (data.message) {
+        toast({
+          title: "No Flights Found",
+          description: data.message,
+          variant: "destructive",
+        });
+        setFlightData(null);
+      } else {
+        setFlightData(data);
+        toast({
+          title: "Flights Found!",
+          description: "Flight details loaded successfully",
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching flight data:', error);
+      toast({
+        title: "Flight Search Failed",
+        description: "Please check if the API is running at https://tour-travel-292283352371.asia-south1.run.app",
+        variant: "destructive",
+      });
+      setFlightData(null);
+    } finally {
+      setLoadingFlights(false);
+    }
+  };
+
+  // Auto-fetch flights when date is selected and source is provided
+  useEffect(() => {
+    if (flightSource && selectedDate && packageData) {
+      fetchFlightData();
+    }
+  }, [selectedDate, flightSource]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -1603,6 +1681,20 @@ const getImageData = (url: string): Promise<string> => {
 </div>
 
                     <div>
+                      <label className="block text-sm font-medium mb-2">Source</label>
+                      <Input
+                        type="text"
+                        placeholder="e.g., Delhi, Mumbai, DEL"
+                        value={flightSource}
+                        onChange={(e) => setFlightSource(e.target.value)}
+                        className="w-full"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Enter your departure city or airport code
+                      </p>
+                    </div>
+
+                    <div>
                       <label className="block text-sm font-medium mb-2">Travel Date</label>
                       <Popover>
                         <PopoverTrigger asChild>
@@ -1769,6 +1861,48 @@ const getImageData = (url: string): Promise<string> => {
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Flight Details Section */}
+                {loadingFlights && (
+                  <Card>
+                    <CardContent className="p-8">
+                      <div className="flex flex-col items-center gap-6 py-6">
+                        {/* Animated flight spinner */}
+                        <div className="relative w-28 h-28">
+                          {/* Outer rotating circle */}
+                          <div className="absolute inset-0 border-4 border-blue-100 rounded-full"></div>
+                          <div className="absolute inset-0 border-4 border-blue-500 rounded-full border-t-transparent animate-spin"></div>
+                          
+                          {/* Plane icon that orbits */}
+                          <div className="absolute inset-0 animate-spin" style={{ animationDuration: '3s' }}>
+                            <Plane className="h-7 w-7 text-blue-600 absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90" />
+                          </div>
+                          
+                          {/* Center pulse effect */}
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="w-4 h-4 bg-blue-500 rounded-full animate-pulse"></div>
+                          </div>
+                        </div>
+                        
+                        {/* Loading text */}
+                        <div className="space-y-2 text-center">
+                          <p className="text-gray-900 font-semibold text-xl">Searching for flights...</p>
+                          <p className="text-gray-500 text-sm">Finding you the best deals from {flightSource}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {flightData && !loadingFlights && (
+                  <FlightDetails
+                    journeyType={flightData.journey_type}
+                    totalPrice={flightData.total_price_in_inr}
+                    outboundJourney={flightData.outbound_journey}
+                    returnJourney={flightData.return_journey}
+                    returnDate={flightData.return_date}
+                  />
+                )}
               </div>
             </div>
           </div>
