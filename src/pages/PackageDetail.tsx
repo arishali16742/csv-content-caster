@@ -191,6 +191,7 @@ const PackageDetail = () => {
   const [flightSource, setFlightSource] = useState('');
   const [flightData, setFlightData] = useState<any>(null);
   const [loadingFlights, setLoadingFlights] = useState(false);
+  const [destinationCountry, setDestinationCountry] = useState('');
   // const [flightApiUrl, setFlightApiUrl] = useState('http://localhost:8000');
   const [flightApiUrl, setFlightApiUrl] = useState('https://tour-travel-292283352371.asia-south1.run.app');
 
@@ -1046,7 +1047,7 @@ const fetchFlightData = async () => {
     let destinationIATA = "BOM"; // Default fallback
     let sourceIATA = flightSource.trim().toUpperCase();
 
-    // Query IATA table to get destination IATA code
+    // Query IATA table to get destination IATA code and country
     try {
       // Build search queries for each destination
       const destinationQueries = packageData.destinations.map(dest => 
@@ -1055,18 +1056,21 @@ const fetchFlightData = async () => {
       
       const { data: destinationIataData, error: destinationError } = await supabase
         .from('iata' as any)
-        .select('iata, destinations')
+        .select('iata, destinations, country')
         .or(destinationQueries.join(','))
         .limit(1); // Just get the first match
 
       if (!destinationError && destinationIataData && destinationIataData.length > 0) {
         destinationIATA = (destinationIataData as any)[0].iata;
-        console.log('Found destination IATA:', destinationIATA, 'for destinations:', packageData.destinations, 'from data:', (destinationIataData as any)[0]);
+        setDestinationCountry((destinationIataData as any)[0].country || packageData.destinations.join(', '));
+        console.log('Found destination IATA:', destinationIATA, 'country:', (destinationIataData as any)[0].country, 'for destinations:', packageData.destinations);
       } else {
         console.warn('Could not find destination IATA, using default:', destinationIATA, 'Error:', destinationError);
+        setDestinationCountry(packageData.destinations.join(', '));
       }
     } catch (destinationLookupError) {
       console.warn('Destination IATA lookup failed, using default:', destinationIATA, 'Error:', destinationLookupError);
+      setDestinationCountry(packageData.destinations.join(', '));
     }
 
     // Apply fallback for common cities first
@@ -1999,7 +2003,7 @@ const fetchFlightData = async () => {
                     returnJourney={flightData.return_journey}
                     returnDate={flightData.return_date}
                     sourceName={flightSource}
-                    destinationName={packageData?.destinations.join(', ')}
+                    destinationName={destinationCountry || packageData?.destinations.join(', ')}
                   />
                 )}
               </div>
