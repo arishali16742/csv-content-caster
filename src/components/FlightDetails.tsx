@@ -24,6 +24,8 @@ interface FlightDetailsProps {
   outboundJourney: Journey;
   returnJourney?: Journey;
   returnDate?: string;
+  sourceName?: string;
+  destinationName?: string;
 }
 
 const FlightDetails: React.FC<FlightDetailsProps> = ({
@@ -31,7 +33,9 @@ const FlightDetails: React.FC<FlightDetailsProps> = ({
   totalPrice,
   outboundJourney,
   returnJourney,
-  returnDate
+  returnDate,
+  sourceName,
+  destinationName
 }) => {
   const formatDuration = (duration: string) => {
     // Duration is in ISO 8601 format like "PT2H30M"
@@ -41,17 +45,39 @@ const FlightDetails: React.FC<FlightDetailsProps> = ({
   };
 
   const formatDateTime = (dateTime: string) => {
-    const date = new Date(dateTime);
-    return {
-      date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      time: date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
-    };
+    try {
+      const date = new Date(dateTime);
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return {
+          date: 'Invalid Date',
+          time: 'Invalid Date'
+        };
+      }
+      return {
+        date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        time: date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+      };
+    } catch (error) {
+      console.error('Error formatting date:', dateTime, error);
+      return {
+        date: 'Invalid Date',
+        time: 'Invalid Date'
+      };
+    }
   };
 
-  const renderJourney = (journey: Journey, title: string) => (
+  const renderJourney = (journey: Journey, title: string, showRoute: boolean = false) => (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h4 className="font-semibold text-lg">{title}</h4>
+        <div>
+          <h4 className="font-semibold text-lg">{title}</h4>
+          {showRoute && sourceName && destinationName && (
+            <p className="text-sm text-gray-600 mt-1">
+              {sourceName} → {destinationName}
+            </p>
+          )}
+        </div>
         <Badge variant="secondary" className="bg-blue-50 text-blue-700">
           <Clock className="h-3 w-3 mr-1" />
           {formatDuration(journey.total_duration)}
@@ -127,12 +153,12 @@ const FlightDetails: React.FC<FlightDetailsProps> = ({
           {journeyType === 'one-way' ? 'One-Way Journey' : 'Round Trip'}
         </Badge>
 
-        {renderJourney(outboundJourney, 'Outbound Flight')}
+        {renderJourney(outboundJourney, 'Outbound Flight', true)}
 
         {returnJourney && (
           <>
             <div className="border-t pt-4" />
-            {renderJourney(returnJourney, 'Return Flight')}
+            {renderJourney(returnJourney, 'Return Flight', true)}
           </>
         )}
 

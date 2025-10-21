@@ -1032,9 +1032,11 @@ const getImageData = (url: string): Promise<string> => {
     setFlightData(null);
 
     try {
-      // Get destination from package (use first destination or country)
-      // const destination = packageData.destinations[0] || packageData.country;
-      const destination = "BOM"
+      // Get destination IATA code - for now using BOM as default
+      // TODO: Query IATA table once it's set up in database
+      const destinationIATA = "BOM"; // Will be dynamic once IATA table is populated
+      const sourceIATA = flightSource.trim();
+      
       // Format date to YYYY-MM-DD
       const departureDate = format(selectedDate, 'yyyy-MM-dd');
       
@@ -1043,8 +1045,8 @@ const getImageData = (url: string): Promise<string> => {
 
       // Build API URL
       const params = new URLSearchParams({
-        origin: flightSource.trim(),
-        destination: destination.trim(),
+        origin: sourceIATA,
+        destination: destinationIATA,
         departure_date: departureDate,
         duration: duration
       });
@@ -1680,46 +1682,61 @@ const getImageData = (url: string): Promise<string> => {
   </div>
 </div>
 
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Source</label>
-                      <Input
-                        type="text"
-                        placeholder="e.g., Delhi, Mumbai, DEL"
-                        value={flightSource}
-                        onChange={(e) => setFlightSource(e.target.value)}
-                        className="w-full"
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="flights"
+                        checked={withFlights}
+                        onChange={(e) => setWithFlights(e.target.checked)}
+                        className="rounded border-gray-300"
                       />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Enter your departure city or airport code
-                      </p>
+                      <label htmlFor="flights" className="text-sm md:text-base">Include Flights</label>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Travel Date</label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal text-sm md:text-base",
-                              !selectedDate && "text-muted-foreground"
-                            )}
-                          >
-                            <Calendar className="mr-2 h-3 w-3 md:h-4 md:w-4" />
-                            {selectedDate ? format(selectedDate, "PPP") : "Select date"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <CalendarComponent
-                            mode="single"
-                            selected={selectedDate}
-                            onSelect={setSelectedDate}
-                            disabled={(date) => date < new Date()}
-                            initialFocus
+                    {withFlights && (
+                      <>
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Source</label>
+                          <Input
+                            type="text"
+                            placeholder="e.g., Delhi, Mumbai, DEL"
+                            value={flightSource}
+                            onChange={(e) => setFlightSource(e.target.value)}
+                            className="w-full"
                           />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Enter your departure city or airport code
+                          </p>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Travel Date</label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  "w-full justify-start text-left font-normal text-sm md:text-base",
+                                  !selectedDate && "text-muted-foreground"
+                                )}
+                              >
+                                <Calendar className="mr-2 h-3 w-3 md:h-4 md:w-4" />
+                                {selectedDate ? format(selectedDate, "PPP") : "Select date"}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <CalendarComponent
+                                mode="single"
+                                selected={selectedDate}
+                                onSelect={setSelectedDate}
+                                disabled={(date) => date < new Date()}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      </>
+                    )}
 
                     <div>
                       <label className="block text-sm font-medium mb-2">Number of Travelers</label>
@@ -1745,16 +1762,6 @@ const getImageData = (url: string): Promise<string> => {
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="flights"
-                        checked={withFlights}
-                        onChange={(e) => setWithFlights(e.target.checked)}
-                        className="rounded border-gray-300"
-                      />
-                      <label htmlFor="flights" className="text-sm md:text-base">Include Flights</label>
-                    </div>
 
                     <div className="border-t pt-4 space-y-2">
   {packageData.original_price && (() => {
@@ -1901,6 +1908,8 @@ const getImageData = (url: string): Promise<string> => {
                     outboundJourney={flightData.outbound_journey}
                     returnJourney={flightData.return_journey}
                     returnDate={flightData.return_date}
+                    sourceName={flightSource}
+                    destinationName={packageData?.destinations.join(', ')}
                   />
                 )}
               </div>
