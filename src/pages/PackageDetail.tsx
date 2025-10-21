@@ -175,7 +175,7 @@ const PackageDetail = () => {
   const [selectedDuration, setSelectedDuration] = useState('3');
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [members, setMembers] = useState(1);
-  const [withFlights, setWithFlights] = useState(true);
+  const [withFlights, setWithFlights] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showGallery, setShowGallery] = useState(false);
   const [isBookingPopupOpen, setIsBookingPopupOpen] = useState(false);
@@ -388,8 +388,19 @@ useEffect(() => {
       return basePrice;
     }
 
-    const priceCategory = withFlights ? 'with_flights' : 'without_flights';
-    return packageDetails.pricing[priceCategory]?.[selectedDuration] || 0;
+    const withoutFlightsPrice = packageDetails.pricing.without_flights?.[selectedDuration] || 0;
+    
+    if (!withFlights) {
+      return withoutFlightsPrice;
+    }
+    
+    // If flights are included, try to use live price
+    if (flightData && flightData.total_price) {
+      return withoutFlightsPrice + flightData.total_price;
+    }
+    
+    // Fallback to default with_flights price if live price not available
+    return packageDetails.pricing.with_flights?.[selectedDuration] || withoutFlightsPrice;
   };
 
   const getTotalPrice = () => {
@@ -1043,14 +1054,14 @@ const fetchFlightData = async () => {
       );
       
       const { data: destinationIataData, error: destinationError } = await supabase
-        .from('iata')
+        .from('iata' as any)
         .select('iata, destinations')
         .or(destinationQueries.join(','))
         .limit(1); // Just get the first match
 
       if (!destinationError && destinationIataData && destinationIataData.length > 0) {
-        destinationIATA = destinationIataData[0].iata;
-        console.log('Found destination IATA:', destinationIATA, 'for destinations:', packageData.destinations, 'from data:', destinationIataData[0]);
+        destinationIATA = (destinationIataData as any)[0].iata;
+        console.log('Found destination IATA:', destinationIATA, 'for destinations:', packageData.destinations, 'from data:', (destinationIataData as any)[0]);
       } else {
         console.warn('Could not find destination IATA, using default:', destinationIATA, 'Error:', destinationError);
       }
@@ -1058,67 +1069,56 @@ const fetchFlightData = async () => {
       console.warn('Destination IATA lookup failed, using default:', destinationIATA, 'Error:', destinationLookupError);
     }
 
-    // Look up source IATA code
-    try {
-      // If source is not a 3-letter code, try to look it up
-      if (sourceIATA.length !== 3) {
+    // Apply fallback for common cities first
+    const cityToIATA: Record<string, string> = {
+      'delhi': 'DEL',
+      'mumbai': 'BOM',
+      'chennai': 'MAA',
+      'kolkata': 'CCU',
+      'bangalore': 'BLR',
+      'bengaluru': 'BLR',
+      'hyderabad': 'HYD',
+      'pune': 'PNQ',
+      'ahmedabad': 'AMD',
+      'jaipur': 'JAI',
+      'kochi': 'COK',
+      'goa': 'GOI'
+    };
+
+    // Check if it's a known city name
+    const lowerSource = flightSource.toLowerCase();
+    let foundInFallback = false;
+    
+    for (const [city, code] of Object.entries(cityToIATA)) {
+      if (lowerSource.includes(city)) {
+        sourceIATA = code;
+        foundInFallback = true;
+        console.log('Using fallback source IATA:', sourceIATA, 'for source:', flightSource);
+        break;
+      }
+    }
+
+    // If not found in fallback and not a 3-letter code, try database lookup
+    if (!foundInFallback && sourceIATA.length !== 3) {
+      try {
         const { data: sourceIataData, error: sourceError } = await supabase
-          .from('iata')
+          .from('iata' as any)
           .select('iata, destinations')
-          .or(`destinations.ilike.%${flightSource}%`)
+          .ilike('destinations', `%${flightSource}%`)
           .limit(1);
         
         if (!sourceError && sourceIataData && sourceIataData.length > 0) {
-          sourceIATA = sourceIataData[0].iata;
-          console.log('Found source IATA:', sourceIATA, 'for source:', flightSource, 'from data:', sourceIataData[0]);
+          sourceIATA = (sourceIataData as any)[0].iata;
+          console.log('Found source IATA from DB:', sourceIATA, 'for source:', flightSource);
         } else {
-          console.warn('Could not find source IATA for:', flightSource, 'using as-is:', sourceIATA, 'Error:', sourceError);
-          // Apply fallback for common Indian cities
-          if (flightSource.toLowerCase().includes('delhi')) {
-            sourceIATA = 'DEL';
-          } else if (flightSource.toLowerCase().includes('mumbai')) {
-            sourceIATA = 'BOM';
-          } else if (flightSource.toLowerCase().includes('chennai')) {
-            sourceIATA = 'MAA';
-          } else if (flightSource.toLowerCase().includes('kolkata')) {
-            sourceIATA = 'CCU';
-          } else if (flightSource.toLowerCase().includes('bangalore') || flightSource.toLowerCase().includes('bengaluru')) {
-            sourceIATA = 'BLR';
-          } else if (flightSource.toLowerCase().includes('hyderabad')) {
-            sourceIATA = 'HYD';
-          }
-          console.log('Using fallback source IATA:', sourceIATA);
+          console.warn('Could not find source IATA for:', flightSource, 'Error:', sourceError);
         }
-      } else {
-        // Source is already a 3-letter code, validate it exists
-        const { data: sourceIataData, error: sourceError } = await supabase
-          .from('iata')
-          .select('iata')
-          .eq('iata', sourceIATA)
-          .limit(1);
-        
-        if (!sourceError && sourceIataData && sourceIataData.length > 0) {
-          console.log('Validated source IATA:', sourceIATA);
-        } else {
-          console.warn('Source IATA code not found in database:', sourceIATA);
-        }
+      } catch (sourceLookupError) {
+        console.warn('Source IATA lookup failed:', sourceLookupError);
       }
-    } catch (sourceLookupError) {
-      console.warn('Source IATA lookup failed, using:', sourceIATA, 'Error:', sourceLookupError);
-      // Apply the same fallback logic
-      if (flightSource.toLowerCase().includes('delhi')) {
-        sourceIATA = 'DEL';
-      } else if (flightSource.toLowerCase().includes('mumbai')) {
-        sourceIATA = 'BOM';
-      } else if (flightSource.toLowerCase().includes('chennai')) {
-        sourceIATA = 'MAA';
-      } else if (flightSource.toLowerCase().includes('kolkata')) {
-        sourceIATA = 'CCU';
-      } else if (flightSource.toLowerCase().includes('bangalore') || flightSource.toLowerCase().includes('bengaluru')) {
-        sourceIATA = 'BLR';
-      } else if (flightSource.toLowerCase().includes('hyderabad')) {
-        sourceIATA = 'HYD';
-      }
+    } else if (sourceIATA.length === 3) {
+      // Already a 3-letter code, use it as-is
+      console.log('Using provided IATA code:', sourceIATA);
     }
 
     // Format date to YYYY-MM-DD
