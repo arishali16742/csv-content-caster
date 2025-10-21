@@ -79,21 +79,15 @@ const MultiPackageBookingPopup = ({
     
     const visaCost = item.visa_cost || 0;
     
-    // If with_flights is true, use original_price from packages table (includes flight cost)
-    if (item.with_flights) {
-      const originalPriceWithFlights = parseInt(item.packages.original_price?.replace(/[₹,]/g, '') || item.packages.price.replace(/[₹,]/g, ''));
-      return originalPriceWithFlights + visaCost;
-    } else {
-      // Without flights: Calculate the original price by finding the ratio between package price and original price
-      const packagePrice = parseInt(item.packages.price.replace(/[₹,]/g, ''));
-      const originalPrice = parseInt(item.packages.original_price?.replace(/[₹,]/g, '') || item.packages.price.replace(/[₹,]/g, ''));
-      
-      // Calculate the original price without flights by applying the same discount ratio
-      const ratio = originalPrice / packagePrice;
-      const originalPriceWithoutFlights = Math.round(item.total_price * ratio);
-      
-      return originalPriceWithoutFlights + visaCost;
+    // Always use price_before_admin_discount as the original price if available
+    // This is the actual price shown when user adds to cart (before any discounts)
+    if (item.price_before_admin_discount) {
+      return item.price_before_admin_discount + visaCost;
     }
+    
+    // Fallback: Use package original_price (with flights) if no price_before_admin_discount
+    const originalPrice = parseInt(item.packages.original_price?.replace(/[₹,]/g, '') || item.packages.price.replace(/[₹,]/g, ''));
+    return originalPrice + visaCost;
   };
 
   const getSelectedItems = () => {
