@@ -41,6 +41,7 @@ interface CartItem {
     id: string;
     title: string;
     price: string;
+    original_price?: string;
     image: string;
     destinations: string[];
     mood: string;
@@ -436,15 +437,28 @@ const Cart = () => {
     loadCartItems(); // Reload to show updated booking status
   };
 
-  // Calculate original price for a single cart item - directly from packages table
+  // Calculate original price for a single cart item based on configuration
   const getItemOriginalPrice = (item: CartItem) => {
     if (!item.packages) return 0;
     
-    // Always use the packages table price as the true original price
-    const packagePrice = parseInt(item.packages.price.replace(/[₹,]/g, ''));
     const visaCost = item.visa_cost || 0;
     
-    return packagePrice + visaCost;
+    // If with_flights is true, use original_price from packages table (includes flight cost)
+    if (item.with_flights) {
+      const originalPriceWithFlights = parseInt(item.packages.original_price?.replace(/[₹,]/g, '') || item.packages.price.replace(/[₹,]/g, ''));
+      return originalPriceWithFlights + visaCost;
+    } else {
+      // Without flights: Calculate the original price by finding the ratio between package price and original price
+      const packagePrice = parseInt(item.packages.price.replace(/[₹,]/g, ''));
+      const originalPrice = parseInt(item.packages.original_price?.replace(/[₹,]/g, '') || item.packages.price.replace(/[₹,]/g, ''));
+      
+      // Calculate the original price without flights by applying the same discount ratio
+      // The ratio is: original_price / price (this gives us the markup factor)
+      const ratio = originalPrice / packagePrice;
+      const originalPriceWithoutFlights = Math.round(item.total_price * ratio);
+      
+      return originalPriceWithoutFlights + visaCost;
+    }
   };
 
   // Calculate price after coupon (before admin discount)

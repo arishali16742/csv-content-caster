@@ -32,6 +32,7 @@ interface CartItem {
     id: string;
     title: string;
     price: string;
+    original_price?: string;
     image: string;
     destinations: string[];
     mood: string;
@@ -74,24 +75,25 @@ const MultiPackageBookingPopup = ({
   const navigate = useNavigate();
 
   const calculateOriginalPrice = (item: CartItem): number => {
-    // Use price_before_admin_discount if available (original price before admin discount)
-    // Otherwise use the current total_price as baseline
-    const basePrice = item.price_before_admin_discount || item.total_price;
+    if (!item.packages) return item.total_price;
+    
     const visaCost = item.visa_cost || 0;
     
-    // If there's a coupon applied, calculate backwards to get original price
-    if (item.applied_coupon_details) {
-      const couponMatch = item.applied_coupon_details.match(/(\d+)%/);
-      if (couponMatch) {
-        const discountPercentage = parseInt(couponMatch[1], 10);
-        // Coupon was applied to (package + visa), so calculate original total
-        const currentTotal = basePrice + visaCost;
-        const originalTotal = currentTotal / (1 - discountPercentage / 100);
-        return Math.round(originalTotal);
-      }
+    // If with_flights is true, use original_price from packages table (includes flight cost)
+    if (item.with_flights) {
+      const originalPriceWithFlights = parseInt(item.packages.original_price?.replace(/[₹,]/g, '') || item.packages.price.replace(/[₹,]/g, ''));
+      return originalPriceWithFlights + visaCost;
+    } else {
+      // Without flights: Calculate the original price by finding the ratio between package price and original price
+      const packagePrice = parseInt(item.packages.price.replace(/[₹,]/g, ''));
+      const originalPrice = parseInt(item.packages.original_price?.replace(/[₹,]/g, '') || item.packages.price.replace(/[₹,]/g, ''));
+      
+      // Calculate the original price without flights by applying the same discount ratio
+      const ratio = originalPrice / packagePrice;
+      const originalPriceWithoutFlights = Math.round(item.total_price * ratio);
+      
+      return originalPriceWithoutFlights + visaCost;
     }
-    
-    return basePrice + visaCost;
   };
 
   const getSelectedItems = () => {
