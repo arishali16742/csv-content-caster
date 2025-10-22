@@ -24,9 +24,9 @@ const PackageLoader = () => {
           clearInterval(interval);
           return 100;
         }
-        return prev + 2; // Increase progress faster to reach 100%
+        return prev + 2;
       });
-    }, 100); // Update every 100ms for faster completion
+    }, 100);
     
     return () => clearInterval(interval);
   }, []);
@@ -34,7 +34,6 @@ const PackageLoader = () => {
   return (
     <div className="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
       <div className="relative mb-6">
-        {/* Rectangular container for the image - larger dimensions */}
         <div className="w-80 h-60 md:w-96 md:h-72 rounded-xl overflow-hidden border-4 border-travel-primary/20 shadow-lg">
           <img 
             src="https://iili.io/Kf4Cepe.md.jpg"
@@ -49,7 +48,6 @@ const PackageLoader = () => {
         <p className="text-gray-600">Discovering amazing destinations for you...</p>
       </div>
       
-      {/* Progress bar */}
       <div className="w-64 md:w-80 h-2 bg-gray-200 rounded-full mt-8 overflow-hidden">
         <div 
           className="h-full bg-travel-primary rounded-full transition-all duration-300 ease-linear"
@@ -68,6 +66,82 @@ const formatPrice = (price: string | undefined) => {
   if (!price) return '0';
   const numericValue = parseInt(price.replace(/[^0-9]/g, '')) || 0;
   return numericValue.toLocaleString('en-IN');
+};
+
+// Helper function to get price based on flight selection and duration
+const getPackagePrice = (pkg: any, packageDetails: any, withFlights: boolean, withoutFlights: boolean) => {
+  // If neither flight option is selected, use the default price from packages table
+  if (!withFlights && !withoutFlights) {
+    return {
+      price: pkg.price,
+      originalPrice: pkg.original_price
+    };
+  }
+  
+  const details = packageDetails[pkg.id];
+  if (!details?.pricing) {
+    return {
+      price: pkg.price,
+      originalPrice: pkg.original_price
+    }; // Fallback to default price
+  }
+  
+  const pricing = details.pricing;
+  const duration = parseInt(pkg.duration?.replace(/[^0-9]/g, '') || '0');
+  
+  // Find the closest available duration that has non-zero pricing
+  const getAvailableDuration = (pricingObj: any) => {
+    const availableDurations = Object.keys(pricingObj || {})
+      .map(Number)
+      .sort((a, b) => a - b)
+      .filter(dur => pricingObj[dur] > 0); // Only consider durations with non-zero prices
+    
+    if (availableDurations.length === 0) return null;
+    
+    // Find the closest duration that has pricing
+    return availableDurations.reduce((closest, curr) => {
+      return Math.abs(curr - duration) < Math.abs(closest - duration) ? curr : closest;
+    });
+  };
+  
+  let selectedDuration: number | null = null;
+  let priceValue: number | null = null;
+  
+  if (withFlights && pricing.with_flights) {
+    selectedDuration = getAvailableDuration(pricing.with_flights);
+    if (selectedDuration !== null) {
+      priceValue = pricing.with_flights[selectedDuration];
+    }
+  } else if (withoutFlights && pricing.without_flights) {
+    selectedDuration = getAvailableDuration(pricing.without_flights);
+    if (selectedDuration !== null) {
+      priceValue = pricing.without_flights[selectedDuration];
+    }
+  }
+  
+  // If we found a valid price, calculate the discounted original price
+  if (priceValue !== null && priceValue > 0) {
+    const currentPrice = parseInt(pkg.price?.replace(/[^0-9]/g, '') || '0');
+    const currentOriginalPrice = parseInt(pkg.original_price?.replace(/[^0-9]/g, '') || '0');
+    
+    // Calculate the discount percentage if both prices are available
+    let originalPriceValue = priceValue;
+    if (currentPrice > 0 && currentOriginalPrice > currentPrice) {
+      const discountPercentage = (currentOriginalPrice - currentPrice) / currentOriginalPrice;
+      originalPriceValue = Math.round(priceValue / (1 - discountPercentage));
+    }
+    
+    return {
+      price: `₹${priceValue}`,
+      originalPrice: originalPriceValue > priceValue ? `₹${originalPriceValue}` : null
+    };
+  }
+  
+  // Fallback to default price
+  return {
+    price: pkg.price,
+    originalPrice: pkg.original_price
+  };
 };
 
 const Packages = () => {
@@ -89,14 +163,6 @@ const Packages = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [showLoader, setShowLoader] = useState(true);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [priceRanges, setPriceRanges] = useState([
-    { label: '₹0–₹10,000', value: '0-10000' },
-    { label: '₹10,000–₹25,000', value: '10000-25000' },
-    { label: '₹25,000–₹50,000', value: '25000-50000' },
-    { label: '₹50,000–₹75,000', value: '50000-75000' },
-    { label: '₹75,000–₹100,000', value: '75000-100000' },
-    { label: 'All Prices', value: '0-10000000' }
-  ]);
   
   const packagesPerPage = 9;
   
@@ -121,7 +187,7 @@ const Packages = () => {
 
         const { data: detailsData, error: detailsError } = await supabase
           .from('package_details')
-          .select('package_id, activity_details, attractions');
+          .select('package_id, activity_details, attractions, pricing');
         
         if (detailsError) throw detailsError;
 
@@ -179,7 +245,6 @@ const Packages = () => {
       } finally {
         setLoading(false);
         setIsInitialLoad(false);
-        // Show loader for minimum 3 seconds even if data loads faster
         setTimeout(() => {
           setShowLoader(false);
         }, 3000);
@@ -188,7 +253,6 @@ const Packages = () => {
 
     fetchData();
     
-    // Restore scroll position if coming back from package details
     const savedScrollPosition = sessionStorage.getItem('packagesScrollPosition');
     if (savedScrollPosition) {
       setTimeout(() => {
@@ -199,10 +263,8 @@ const Packages = () => {
   }, [location]);
 
   const getFilteredOptions = useCallback(() => {
-    // First, filter packages based on all current filters except the one being changed
     let filtered = [...packages];
     
-    // Apply search filter
     if (searchDestination) {
       const searchTerm = searchDestination.toLowerCase();
       filtered = filtered.filter(pkg => {
@@ -214,68 +276,48 @@ const Packages = () => {
       });
     }
     
-    // Apply price filter
     filtered = filtered.filter(pkg => {
-      const packagePrice = parseInt(pkg.price?.replace(/[^0-9]/g, '') || '0');
+      const dynamicPrice = getPackagePrice(pkg, packageDetails, withFlights, withoutFlights);
+      const packagePrice = parseInt(dynamicPrice.price?.replace(/[^0-9]/g, '') || '0');
       return packagePrice >= priceRange[0] && packagePrice <= priceRange[1];
     });
     
-    // Apply flight filters
-    if (withFlights) {
-      filtered = filtered.filter(pkg => {
-        const includes = pkg.includes || [];
-        return includes.includes("Flights");
-      });
-    }
-    
-    if (withoutFlights) {
-      filtered = filtered.filter(pkg => {
-        const includes = pkg.includes || [];
-        return !includes.includes("Flights");
-      });
-    }
-    
-    // Apply country filter
     if (selectedCountry !== 'all') {
       filtered = filtered.filter(pkg => pkg.country === selectedCountry);
     }
     
-    // Apply mood filter
     if (selectedMood !== 'all') {
       filtered = filtered.filter(pkg => pkg.mood === selectedMood);
     }
     
-    // Apply trip type filter
     if (selectedTripType !== 'all') {
       filtered = filtered.filter(pkg => pkg.trip_type === selectedTripType);
     }
     
-    // Apply deal type filter
     if (selectedDealType !== 'all') {
       filtered = filtered.filter(pkg => pkg.deal_type === selectedDealType);
     }
     
-    // Apply hotel category filter
     if (selectedHotelCategory !== 'all') {
       filtered = filtered.filter(pkg => pkg.hotel_category === selectedHotelCategory);
     }
     
-    // Get unique values for each filter from the filtered packages
     const countries = [...new Set(filtered.map(pkg => pkg.country))].filter(Boolean).sort();
     const moods = [...new Set(filtered.map(pkg => pkg.mood))].filter(Boolean).sort();
     const tripTypes = [...new Set(filtered.map(pkg => pkg.trip_type))].filter(Boolean).sort();
     const dealTypes = [...new Set(filtered.map(pkg => pkg.deal_type))].filter(Boolean);
     const hotelCategories = [...new Set(filtered.map(pkg => pkg.hotel_category))].filter(Boolean);
     
-    // Get available price ranges based on filtered packages
     const packagePrices = filtered
-      .map(pkg => parseInt(pkg.price?.replace(/[^0-9]/g, '') || '0'))
+      .map(pkg => {
+        const dynamicPrice = getPackagePrice(pkg, packageDetails, withFlights, withoutFlights);
+        return parseInt(dynamicPrice.price?.replace(/[^0-9]/g, '') || '0');
+      })
       .filter(price => price > 0);
     
     let availablePriceRanges = [];
     
     if (packagePrices.length > 0) {
-      // Define price brackets
       const brackets = [
         { min: 0, max: 10000, label: '₹0–₹10,000' },
         { min: 10000, max: 25000, label: '₹10,000–₹25,000' },
@@ -289,15 +331,12 @@ const Packages = () => {
         { min: 500000, max: 10000000, label: '₹500,000+' }
       ];
       
-      // Filter brackets to only include those that have packages
       const availableBrackets = brackets.filter(bracket => {
         return packagePrices.some(price => price >= bracket.min && price <= bracket.max);
       });
       
-      // Add "All Prices" option
       availableBrackets.push({ min: 0, max: 10000000, label: 'All Prices' });
       
-      // Convert to the format needed for the select component
       availablePriceRanges = availableBrackets.map(bracket => ({
         label: bracket.label,
         value: `${bracket.min}-${bracket.max}`
@@ -306,15 +345,14 @@ const Packages = () => {
       availablePriceRanges = [{ label: 'All Prices', value: '0-10000000' }];
     }
     
-    // Check flight options availability
     const hasPackagesWithFlights = filtered.some(pkg => {
-      const includes = pkg.includes || [];
-      return includes.includes("Flights");
+      const details = packageDetails[pkg.id];
+      return details?.pricing?.with_flights && Object.values(details.pricing.with_flights).some((price: any) => price > 0);
     });
     
     const hasPackagesWithoutFlights = filtered.some(pkg => {
-      const includes = pkg.includes || [];
-      return !includes.includes("Flights");
+      const details = packageDetails[pkg.id];
+      return details?.pricing?.without_flights && Object.values(details.pricing.without_flights).some((price: any) => price > 0);
     });
     
     return {
@@ -327,9 +365,8 @@ const Packages = () => {
       hasPackagesWithFlights,
       hasPackagesWithoutFlights
     };
-  }, [packages, searchDestination, priceRange, withFlights, withoutFlights, selectedCountry, selectedMood, selectedTripType, selectedDealType, selectedHotelCategory]);
+  }, [packages, packageDetails, searchDestination, priceRange, withFlights, withoutFlights, selectedCountry, selectedMood, selectedTripType, selectedDealType, selectedHotelCategory]);
 
-  // Update URL whenever filters change (but not on initial load)
   useEffect(() => {
     if (isInitialLoad) return;
     
@@ -580,10 +617,7 @@ const Packages = () => {
   };
 
   const handlePackageClick = (packageId: string) => {
-    // Save current scroll position
     sessionStorage.setItem('packagesScrollPosition', window.scrollY.toString());
-    
-    // Navigate to package detail - the filters are already preserved in the URL
     navigate(`/package/${packageId}${location.search}`);
   };
 
@@ -602,13 +636,9 @@ const Packages = () => {
       if (!hasMatch) return false;
     }
 
-    const packagePrice = parseInt(pkg.price?.replace(/[^0-9]/g, '') || '0');
+    const dynamicPrice = getPackagePrice(pkg, packageDetails, withFlights, withoutFlights);
+    const packagePrice = parseInt(dynamicPrice.price?.replace(/[^0-9]/g, '') || '0');
     if (packagePrice < priceRange[0] || packagePrice > priceRange[1]) return false;
-    
-    // Flight filters based on includes field
-    const includes = pkg.includes || [];
-    if (withFlights && !includes.includes("Flights")) return false;
-    if (withoutFlights && includes.includes("Flights")) return false;
 
     return (
       (selectedCountry === 'all' || pkg.country === selectedCountry) &&
@@ -620,8 +650,8 @@ const Packages = () => {
   });
 
   const sortedPackages = [...filteredPackages].sort((a, b) => {
-    const aPrice = parseInt(a.price?.replace(/[^0-9]/g, '') || '0');
-    const bPrice = parseInt(b.price?.replace(/[^0-9]/g, '') || '0');
+    const aPrice = parseInt(getPackagePrice(a, packageDetails, withFlights, withoutFlights).price?.replace(/[^0-9]/g, '') || '0');
+    const bPrice = parseInt(getPackagePrice(b, packageDetails, withFlights, withoutFlights).price?.replace(/[^0-9]/g, '') || '0');
     
     switch (sortBy) {
       case 'price-low': return aPrice - bPrice;
@@ -764,6 +794,7 @@ const Packages = () => {
                     {currentPackages.map((pkg) => {
                       const activitiesCount = packageDetails[pkg.id]?.activity_details?.count || 0;
                       const attractionsCount = packageDetails[pkg.id]?.attractions?.length || 0;
+                      const dynamicPrice = getPackagePrice(pkg, packageDetails, withFlights, withoutFlights);
                       
                       return (
                         <div 
@@ -821,13 +852,13 @@ const Packages = () => {
                               <div className="flex justify-between items-center">
                                 <span className="text-xs text-gray-500">{pkg.trip_type}</span>
                                 <div className="text-right">
-                                  {pkg.original_price && (
+                                  {dynamicPrice.originalPrice && (
                                     <span className="text-xs text-red-500 line-through block">
-                                      ₹{formatPrice(pkg.original_price)}
+                                      ₹{formatPrice(dynamicPrice.originalPrice)}
                                     </span>
                                   )}
                                   <div className="text-base font-bold text-green-600">
-                                    ₹{formatPrice(pkg.price)}
+                                    ₹{formatPrice(dynamicPrice.price)}
                                     <span className="text-xs font-normal text-gray-500 block">per person</span>
                                   </div>
                                 </div>

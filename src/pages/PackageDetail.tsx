@@ -192,35 +192,30 @@ const PackageDetail = () => {
   const [flightData, setFlightData] = useState<any>(null);
   const [loadingFlights, setLoadingFlights] = useState(false);
   const [destinationCountry, setDestinationCountry] = useState('');
-  // const [flightApiUrl, setFlightApiUrl] = useState('http://localhost:8000');
   const [flightApiUrl, setFlightApiUrl] = useState('https://tour-travel-292283352371.asia-south1.run.app');
 
-// Move images declaration here so it's available for useEffect below
-const images = packageData?.gallery_images && packageData.gallery_images.length > 0 
-  ? packageData.gallery_images 
-  : [packageData?.image].filter(Boolean);
+  const images = packageData?.gallery_images && packageData.gallery_images.length > 0 
+    ? packageData.gallery_images 
+    : [packageData?.image].filter(Boolean);
 
-useEffect(() => {
-  if (images.length <= 1) return;
+  useEffect(() => {
+    if (images.length <= 1) return;
 
-  const interval = setInterval(() => {
-    setCurrentImageIndex((prev) => (prev + 1) % images.length);
-  }, 2000);
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prev) => (prev + 1) % images.length);
+    }, 2000);
 
-  return () => clearInterval(interval);
-}, [images.length]);
+    return () => clearInterval(interval);
+  }, [images.length]);
 
-
-useEffect(() => {
-  if (packageData?.duration) {
-    // Extract the number of days from "3 Days / 2 Nights" format
-    const daysMatch = packageData.duration.match(/^(\d+)\s*Days/i);
-    if (daysMatch && daysMatch[1]) {
-      setSelectedDuration(daysMatch[1]);
+  useEffect(() => {
+    if (packageData?.duration) {
+      const daysMatch = packageData.duration.match(/^(\d+)\s*Days/i);
+      if (daysMatch && daysMatch[1]) {
+        setSelectedDuration(daysMatch[1]);
+      }
     }
-  }
-}, [packageData]);
-  
+  }, [packageData]);
   
   useEffect(() => {
     const checkMobile = () => {
@@ -239,7 +234,6 @@ useEffect(() => {
     }
   }, [id]);
 
-  // Scroll to top when component mounts or id changes
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [id]);
@@ -395,13 +389,42 @@ useEffect(() => {
       return withoutFlightsPrice;
     }
     
-    // If flights are included, try to use live price
     if (flightData && flightData.total_price_in_inr) {
       return withoutFlightsPrice + flightData.total_price_in_inr;
     }
     
-    // Fallback to default with_flights price if live price not available
     return packageDetails.pricing.with_flights?.[selectedDuration] || withoutFlightsPrice;
+  };
+
+  // NEW: Calculate the adjusted original price based on flight selection
+  const getAdjustedOriginalPrice = () => {
+    if (!packageData?.original_price) return 0;
+
+    const originalBasePrice = parseInt(packageData.original_price.replace(/[^0-9]/g, '')) || 0;
+    
+    if (!packageDetails?.pricing) {
+      return originalBasePrice;
+    }
+
+    const withFlightsPrice = packageDetails.pricing.with_flights?.[selectedDuration] || 0;
+    const withoutFlightsPrice = packageDetails.pricing.without_flights?.[selectedDuration] || 0;
+
+    if (withFlightsPrice === 0 || withoutFlightsPrice === 0) {
+      return originalBasePrice;
+    }
+
+    // Calculate the percentage difference between with_flights and without_flights
+    const priceDifference = withFlightsPrice - withoutFlightsPrice;
+    const percentageOfOriginal = priceDifference / withFlightsPrice;
+
+    if (withFlights) {
+      // When flights are selected, use full original price
+      return originalBasePrice;
+    } else {
+      // When flights are not selected, subtract the same percentage from original price
+      const adjustedPrice = originalBasePrice * (1 - percentageOfOriginal);
+      return Math.round(adjustedPrice);
+    }
   };
 
   const getTotalPrice = () => {
@@ -451,7 +474,6 @@ useEffect(() => {
         user_email: user.email
       });
 
-      // Navigate to cart page after adding item
       navigate('/cart');
     } catch (error: any) {
       toast({
@@ -513,318 +535,376 @@ useEffect(() => {
   };
 
   const generatePDF = async () => {
-  const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.width;
-  const pageHeight = doc.internal.pageSize.height;
-  const margin = 20;
-  let yPosition = margin;
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    const margin = 20;
+    let yPosition = margin;
 
-  // Add logo/header
-  doc.setFillColor(23, 37, 84);
-  doc.rect(0, 0, pageWidth, 60, 'F');
-  
-  doc.setFontSize(24);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(255, 255, 255);
-  doc.text('TravelGenz', margin, 40);
-  
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Crafting Unforgettable Journeys', margin, 47);
-  
-  // Add main package image if available
-  if (images && images.length > 0) {
-    try {
-      const imgData = await getImageData(images[0]);
-      const imgWidth = pageWidth - 2 * margin;
-      const imgHeight = imgWidth * 0.6;
-      
-      doc.addImage(imgData, 'JPEG', margin, yPosition, imgWidth, imgHeight);
-      yPosition += imgHeight + 15;
-    } catch (error) {
-      console.error('Error adding main image to PDF:', error);
-      yPosition += 15;
-    }
-  } else {
-    yPosition += 15;
-  }
-  
-  // Package title
-  doc.setFontSize(28);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(23, 37, 84);
-  doc.text(packageData?.title || 'Trip Itinerary', margin, yPosition);
-  
-  yPosition += 15;
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(100, 100, 100);
-  doc.text(`${selectedDuration} Days • ${packageData?.trip_type || 'Package'} • ${packageData?.destinations.join(' → ')}`, margin, yPosition);
-  
-  yPosition += 8;
-  doc.setFontSize(10);
-  doc.setTextColor(150, 150, 150);
-  doc.text(`Created on ${format(new Date(), 'MMMM dd, yyyy')}`, margin, yPosition);
-  
-  yPosition += 20;
-  
-  // Quote box
-  doc.setFillColor(240, 249, 255);
-  doc.rect(margin - 5, yPosition - 5, pageWidth - 2 * margin + 10, 25, 'F');
-  doc.setDrawColor(200, 200, 200);
-  doc.rect(margin - 5, yPosition - 5, pageWidth - 2 * margin + 10, 25, 'D');
-  
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'italic');
-  doc.setTextColor(50, 50, 50);
-  const quote = `"${packageData?.destinations[0]} awaits with unforgettable experiences. This itinerary has been carefully crafted to ensure you make the most of every moment."`;
-  const splitQuote = doc.splitTextToSize(quote, pageWidth - 2 * margin - 10);
-  doc.text(splitQuote, margin, yPosition + 8);
-  
-  yPosition += 35;
-  
-  // Trip at a glance section
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(23, 37, 84);
-  doc.text('Trip At A Glance', margin, yPosition);
-  yPosition += 10;
-  
-  doc.setDrawColor(200, 200, 200);
-  doc.line(margin, yPosition, pageWidth - margin, yPosition);
-  yPosition += 15;
-  
-  const quickFacts = [
-    { icon: '🗓️', title: 'Duration', value: `${selectedDuration} Days ${parseInt(selectedDuration) > 1 ? parseInt(selectedDuration)-1 + ' Nights' : ''}` },
-    { icon: '📍', title: 'Destinations', value: packageData?.destinations.join(', ') },
-    { icon: '✈️', title: 'Flight Option', value: withFlights ? 'Included' : 'Not Included' },
-    { icon: '👥', title: 'Travelers', value: `${members} ${members > 1 ? 'Persons' : 'Person'}` },
-    { icon: '🏨', title: 'Accommodation', value: `${packageDetails?.hotels?.length || 'Premium'} Hotels` },
-    { icon: '📅', title: 'Travel Date', value: selectedDate ? format(selectedDate, 'MMMM dd, yyyy') : 'Flexible' }
-  ];
-  
-  let factX = margin;
-  let factY = yPosition;
-  quickFacts.forEach((fact, index) => {
-    if (index % 3 === 0 && index !== 0) {
-      factX = margin;
-      factY += 30;
-    }
-    
-    doc.setFillColor(245, 245, 245);
-    doc.roundedRect(factX, factY, 55, 25, 3, 3, 'F');
-    doc.setDrawColor(220, 220, 220);
-    doc.roundedRect(factX, factY, 55, 25, 3, 3, 'D');
-    
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(50, 50, 50);
-    doc.text(`${fact.icon} ${fact.title}`, factX + 5, factY + 8);
-    
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(80, 80, 80);
-    const splitValue = doc.splitTextToSize(fact.value, 45);
-    doc.text(splitValue, factX + 5, factY + 16);
-    
-    factX += 60;
-  });
-  
-  yPosition = factY + 35;
-  
-  // Add more images from gallery if available
-  if (images && images.length > 1) {
-    try {
-      doc.addPage();
-      yPosition = margin;
-      
-      doc.setFontSize(18);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(23, 37, 84);
-      doc.text('Destination Gallery', margin, yPosition);
-      yPosition += 10;
-      
-      doc.setDrawColor(200, 200, 200);
-      doc.line(margin, yPosition, pageWidth - margin, yPosition);
-      yPosition += 15;
-      
-      // Add gallery images (skip the first one as it's already used)
-      for (let i = 1; i < Math.min(images.length, 4); i++) {
-        if (yPosition > pageHeight - 150) {
-          doc.addPage();
-          yPosition = margin;
-        }
-        
-        try {
-          const imgData = await getImageData(images[i]);
-          const imgWidth = pageWidth - 2 * margin;
-          const imgHeight = imgWidth * 0.5;
-          
-          doc.addImage(imgData, 'JPEG', margin, yPosition, imgWidth, imgHeight);
-          yPosition += imgHeight + 10;
-          
-          doc.setFontSize(10);
-          doc.setFont('helvetica', 'italic');
-          doc.setTextColor(100, 100, 100);
-          doc.text(`Image ${i + 1} of ${images.length}`, margin, yPosition);
-          yPosition += 15;
-        } catch (error) {
-          console.error(`Error adding image ${i} to PDF:`, error);
-        }
-      }
-    } catch (error) {
-      console.error('Error adding gallery to PDF:', error);
-    }
-  }
-  
-  // Pricing section
-  doc.addPage();
-  yPosition = margin;
-  
-  doc.setFillColor(23, 37, 84);
-  doc.rect(margin, yPosition, pageWidth - 2 * margin, 30, 'F');
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(255, 255, 255);
-  doc.text('Pricing Summary', margin + 10, yPosition + 20);
-  
-  yPosition += 40;
-  
-  const currentPrice = getCurrentPrice();
-  const totalPrice = currentPrice * members;
-  const originalPrice = parseInt(packageData?.original_price.replace(/[₹,]/g, '') || '0');
-  const totalOriginalPrice = originalPrice * members;
-  const grandTotalPrice = totalPrice + addedVisaCost;
-  
-  const priceDetails = [
-    { item: 'Base Price', value: `₹${currentPrice.toLocaleString()} x ${members}` },
-    { item: 'Subtotal', value: `₹${totalPrice.toLocaleString()}` },
-  ];
-  
-  if (addedVisaCost > 0) {
-    priceDetails.push({ item: 'Visa Fees', value: `₹${addedVisaCost.toLocaleString()}` });
-  }
-  
-  priceDetails.push({ item: 'Grand Total', value: `₹${grandTotalPrice.toLocaleString()}` });
-  
-  priceDetails.forEach((detail, index) => {
-    doc.setFontSize(index === priceDetails.length - 1 ? 12 : 10);
-    doc.setFont('helvetica', index === priceDetails.length - 1 ? 'bold' : 'normal');
-    doc.setTextColor(0, 0, 0);
-    
-    doc.text(detail.item, margin + 5, yPosition + 8);
-    
-    const textWidth = doc.getStringUnitWidth(detail.value) * doc.getFontSize() / doc.internal.scaleFactor;
-    doc.text(detail.value, pageWidth - margin - 5 - textWidth, yPosition + 8);
-    
-    if (index === priceDetails.length - 2) {
-      doc.setDrawColor(200, 200, 200);
-      doc.line(margin, yPosition + 12, pageWidth - margin, yPosition + 12);
-      yPosition += 5;
-    }
-    
-    yPosition += 10;
-  });
-  
-  if (originalPrice > 0 && totalOriginalPrice > totalPrice) {
-    yPosition += 5;
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(150, 150, 150);
-    doc.text(`You save ₹${(totalOriginalPrice - totalPrice).toLocaleString()} (${Math.round(((totalOriginalPrice - totalPrice)/totalOriginalPrice)*100)}% off)`, margin + 5, yPosition);
-    yPosition += 10;
-  }
-  
-  yPosition += 15;
-  
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'italic');
-  doc.setTextColor(120, 120, 120);
-  const disclaimer = '* Prices are subject to availability and may change. Final pricing will be confirmed at the time of booking. Taxes and fees included.';
-  const splitDisclaimer = doc.splitTextToSize(disclaimer, pageWidth - 2 * margin);
-  doc.text(splitDisclaimer, margin, yPosition);
-  
-  yPosition += 20;
-  
-  // Detailed itinerary section
-  doc.addPage();
-  yPosition = margin;
-  
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(23, 37, 84);
-  doc.text('Detailed Itinerary', margin, yPosition);
-  yPosition += 10;
-  
-  doc.setDrawColor(200, 200, 200);
-  doc.line(margin, yPosition, pageWidth - margin, yPosition);
-  yPosition += 15;
-  
-  const itinerary = packageDetails?.itinerary?.[selectedDuration] || [];
-  itinerary.forEach((day: any, index: number) => {
-    if (yPosition > pageHeight - 100) {
-      doc.addPage();
-      yPosition = margin;
-    }
-    
-    const dayDate = selectedDate ? 
-      new Date(selectedDate.getTime() + ((day.day - 1) * 24 * 60 * 60 * 1000)) : 
-      null;
-    
     doc.setFillColor(23, 37, 84);
-    doc.rect(margin - 5, yPosition - 5, pageWidth - 2 * margin + 10, 15, 'F');
-    doc.setFontSize(12);
+    doc.rect(0, 0, pageWidth, 60, 'F');
+    
+    doc.setFontSize(24);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(255, 255, 255);
-    doc.text(`Day ${day.day}: ${day.title || `Exploring ${packageData?.destinations[0]}`}${dayDate ? ` • ${format(dayDate, 'EEE, MMM dd')}` : ''}`, margin, yPosition + 5);
-    yPosition += 20;
+    doc.text('TravelGenz', margin, 40);
     
-    if (day.activities && day.activities.length > 0) {
-      day.activities.forEach((activity: string, i: number) => {
-        if (yPosition > pageHeight - 30) {
-          doc.addPage();
-          yPosition = margin;
-        }
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Crafting Unforgettable Journeys', margin, 47);
+    
+    if (images && images.length > 0) {
+      try {
+        const imgData = await getImageData(images[0]);
+        const imgWidth = pageWidth - 2 * margin;
+        const imgHeight = imgWidth * 0.6;
         
-        doc.setFillColor(248, 250, 252);
-        doc.rect(margin, yPosition, pageWidth - 2 * margin, 20, 'F');
-        doc.setDrawColor(220, 220, 220);
-        doc.rect(margin, yPosition, pageWidth - 2 * margin, 20, 'D');
-        
-        doc.setFillColor(23, 37, 84);
-        doc.rect(margin, yPosition, 25, 20, 'F');
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(255, 255, 255);
-        doc.text(getTimeSlot(i), margin + 5, yPosition + 12);
-        
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(50, 50, 50);
-        doc.text(activity, margin + 30, yPosition + 12);
-        
-        yPosition += 25;
-      });
+        doc.addImage(imgData, 'JPEG', margin, yPosition, imgWidth, imgHeight);
+        yPosition += imgHeight + 15;
+      } catch (error) {
+        console.error('Error adding main image to PDF:', error);
+        yPosition += 15;
+      }
     } else {
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'italic');
-      doc.setTextColor(150, 150, 150);
-      doc.text('Activities to be customized based on your preferences', margin, yPosition + 5);
       yPosition += 15;
     }
     
+    doc.setFontSize(28);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(23, 37, 84);
+    doc.text(packageData?.title || 'Trip Itinerary', margin, yPosition);
+    
+    yPosition += 15;
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 100, 100);
+    doc.text(`${selectedDuration} Days • ${packageData?.trip_type || 'Package'} • ${packageData?.destinations.join(' → ')}`, margin, yPosition);
+    
+    yPosition += 8;
+    doc.setFontSize(10);
+    doc.setTextColor(150, 150, 150);
+    doc.text(`Created on ${format(new Date(), 'MMMM dd, yyyy')}`, margin, yPosition);
+    
+    yPosition += 20;
+    
+    doc.setFillColor(240, 249, 255);
+    doc.rect(margin - 5, yPosition - 5, pageWidth - 2 * margin + 10, 25, 'F');
+    doc.setDrawColor(200, 200, 200);
+    doc.rect(margin - 5, yPosition - 5, pageWidth - 2 * margin + 10, 25, 'D');
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(50, 50, 50);
+    const quote = `"${packageData?.destinations[0]} awaits with unforgettable experiences. This itinerary has been carefully crafted to ensure you make the most of every moment."`;
+    const splitQuote = doc.splitTextToSize(quote, pageWidth - 2 * margin - 10);
+    doc.text(splitQuote, margin, yPosition + 8);
+    
+    yPosition += 35;
+    
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(23, 37, 84);
+    doc.text('Trip At A Glance', margin, yPosition);
     yPosition += 10;
-  });
-  
-  // Attractions section
-  if (packageDetails?.attractions && packageDetails.attractions.length > 0) {
+    
+    doc.setDrawColor(200, 200, 200);
+    doc.line(margin, yPosition, pageWidth - margin, yPosition);
+    yPosition += 15;
+    
+    const quickFacts = [
+      { icon: '🗓️', title: 'Duration', value: `${selectedDuration} Days ${parseInt(selectedDuration) > 1 ? parseInt(selectedDuration)-1 + ' Nights' : ''}` },
+      { icon: '📍', title: 'Destinations', value: packageData?.destinations.join(', ') },
+      { icon: '✈️', title: 'Flight Option', value: withFlights ? 'Included' : 'Not Included' },
+      { icon: '👥', title: 'Travelers', value: `${members} ${members > 1 ? 'Persons' : 'Person'}` },
+      { icon: '🏨', title: 'Accommodation', value: `${packageDetails?.hotels?.length || 'Premium'} Hotels` },
+      { icon: '📅', title: 'Travel Date', value: selectedDate ? format(selectedDate, 'MMMM dd, yyyy') : 'Flexible' }
+    ];
+    
+    let factX = margin;
+    let factY = yPosition;
+    quickFacts.forEach((fact, index) => {
+      if (index % 3 === 0 && index !== 0) {
+        factX = margin;
+        factY += 30;
+      }
+      
+      doc.setFillColor(245, 245, 245);
+      doc.roundedRect(factX, factY, 55, 25, 3, 3, 'F');
+      doc.setDrawColor(220, 220, 220);
+      doc.roundedRect(factX, factY, 55, 25, 3, 3, 'D');
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(50, 50, 50);
+      doc.text(`${fact.icon} ${fact.title}`, factX + 5, factY + 8);
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(80, 80, 80);
+      const splitValue = doc.splitTextToSize(fact.value, 45);
+      doc.text(splitValue, factX + 5, factY + 16);
+      
+      factX += 60;
+    });
+    
+    yPosition = factY + 35;
+    
+    if (images && images.length > 1) {
+      try {
+        doc.addPage();
+        yPosition = margin;
+        
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(23, 37, 84);
+        doc.text('Destination Gallery', margin, yPosition);
+        yPosition += 10;
+        
+        doc.setDrawColor(200, 200, 200);
+        doc.line(margin, yPosition, pageWidth - margin, yPosition);
+        yPosition += 15;
+        
+        for (let i = 1; i < Math.min(images.length, 4); i++) {
+          if (yPosition > pageHeight - 150) {
+            doc.addPage();
+            yPosition = margin;
+          }
+          
+          try {
+            const imgData = await getImageData(images[i]);
+            const imgWidth = pageWidth - 2 * margin;
+            const imgHeight = imgWidth * 0.5;
+            
+            doc.addImage(imgData, 'JPEG', margin, yPosition, imgWidth, imgHeight);
+            yPosition += imgHeight + 10;
+            
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'italic');
+            doc.setTextColor(100, 100, 100);
+            doc.text(`Image ${i + 1} of ${images.length}`, margin, yPosition);
+            yPosition += 15;
+          } catch (error) {
+            console.error(`Error adding image ${i} to PDF:`, error);
+          }
+        }
+      } catch (error) {
+        console.error('Error adding gallery to PDF:', error);
+      }
+    }
+    
+    doc.addPage();
+    yPosition = margin;
+    
+    doc.setFillColor(23, 37, 84);
+    doc.rect(margin, yPosition, pageWidth - 2 * margin, 30, 'F');
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255);
+    doc.text('Pricing Summary', margin + 10, yPosition + 20);
+    
+    yPosition += 40;
+    
+    const currentPrice = getCurrentPrice();
+    const totalPrice = currentPrice * members;
+    const originalPrice = getAdjustedOriginalPrice();
+    const totalOriginalPrice = originalPrice * members;
+    const grandTotalPrice = totalPrice + addedVisaCost;
+    
+    const priceDetails = [
+      { item: 'Base Price', value: `₹${currentPrice.toLocaleString()} x ${members}` },
+      { item: 'Subtotal', value: `₹${totalPrice.toLocaleString()}` },
+    ];
+    
+    if (addedVisaCost > 0) {
+      priceDetails.push({ item: 'Visa Fees', value: `₹${addedVisaCost.toLocaleString()}` });
+    }
+    
+    priceDetails.push({ item: 'Grand Total', value: `₹${grandTotalPrice.toLocaleString()}` });
+    
+    priceDetails.forEach((detail, index) => {
+      doc.setFontSize(index === priceDetails.length - 1 ? 12 : 10);
+      doc.setFont('helvetica', index === priceDetails.length - 1 ? 'bold' : 'normal');
+      doc.setTextColor(0, 0, 0);
+      
+      doc.text(detail.item, margin + 5, yPosition + 8);
+      
+      const textWidth = doc.getStringUnitWidth(detail.value) * doc.getFontSize() / doc.internal.scaleFactor;
+      doc.text(detail.value, pageWidth - margin - 5 - textWidth, yPosition + 8);
+      
+      if (index === priceDetails.length - 2) {
+        doc.setDrawColor(200, 200, 200);
+        doc.line(margin, yPosition + 12, pageWidth - margin, yPosition + 12);
+        yPosition += 5;
+      }
+      
+      yPosition += 10;
+    });
+    
+    if (originalPrice > 0 && totalOriginalPrice > totalPrice) {
+      yPosition += 5;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(150, 150, 150);
+      doc.text(`You save ₹${(totalOriginalPrice - totalPrice).toLocaleString()} (${Math.round(((totalOriginalPrice - totalPrice)/totalOriginalPrice)*100)}% off)`, margin + 5, yPosition);
+      yPosition += 10;
+    }
+    
+    yPosition += 15;
+    
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(120, 120, 120);
+    const disclaimer = '* Prices are subject to availability and may change. Final pricing will be confirmed at the time of booking. Taxes and fees included.';
+    const splitDisclaimer = doc.splitTextToSize(disclaimer, pageWidth - 2 * margin);
+    doc.text(splitDisclaimer, margin, yPosition);
+    
+    yPosition += 20;
+    
     doc.addPage();
     yPosition = margin;
     
     doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(23, 37, 84);
-    doc.text('Top Attractions', margin, yPosition);
+    doc.text('Detailed Itinerary', margin, yPosition);
+    yPosition += 10;
+    
+    doc.setDrawColor(200, 200, 200);
+    doc.line(margin, yPosition, pageWidth - margin, yPosition);
+    yPosition += 15;
+    
+    const itinerary = packageDetails?.itinerary?.[selectedDuration] || [];
+    itinerary.forEach((day: any, index: number) => {
+      if (yPosition > pageHeight - 100) {
+        doc.addPage();
+        yPosition = margin;
+      }
+      
+      const dayDate = selectedDate ? 
+        new Date(selectedDate.getTime() + ((day.day - 1) * 24 * 60 * 60 * 1000)) : 
+        null;
+      
+      doc.setFillColor(23, 37, 84);
+      doc.rect(margin - 5, yPosition - 5, pageWidth - 2 * margin + 10, 15, 'F');
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 255, 255);
+      doc.text(`Day ${day.day}: ${day.title || `Exploring ${packageData?.destinations[0]}`}${dayDate ? ` • ${format(dayDate, 'EEE, MMM dd')}` : ''}`, margin, yPosition + 5);
+      yPosition += 20;
+      
+      if (day.activities && day.activities.length > 0) {
+        day.activities.forEach((activity: string, i: number) => {
+          if (yPosition > pageHeight - 30) {
+            doc.addPage();
+            yPosition = margin;
+          }
+          
+          doc.setFillColor(248, 250, 252);
+          doc.rect(margin, yPosition, pageWidth - 2 * margin, 20, 'F');
+          doc.setDrawColor(220, 220, 220);
+          doc.rect(margin, yPosition, pageWidth - 2 * margin, 20, 'D');
+          
+          doc.setFillColor(23, 37, 84);
+          doc.rect(margin, yPosition, 25, 20, 'F');
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(255, 255, 255);
+          doc.text(getTimeSlot(i), margin + 5, yPosition + 12);
+          
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(50, 50, 50);
+          doc.text(activity, margin + 30, yPosition + 12);
+          
+          yPosition += 25;
+        });
+      } else {
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'italic');
+        doc.setTextColor(150, 150, 150);
+        doc.text('Activities to be customized based on your preferences', margin, yPosition + 5);
+        yPosition += 15;
+      }
+      
+      yPosition += 10;
+    });
+    
+    if (packageDetails?.attractions && packageDetails.attractions.length > 0) {
+      doc.addPage();
+      yPosition = margin;
+      
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(23, 37, 84);
+      doc.text('Top Attractions', margin, yPosition);
+      yPosition += 10;
+      
+      doc.setDrawColor(200, 200, 200);
+      doc.line(margin, yPosition, pageWidth - margin, yPosition);
+      yPosition += 15;
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(80, 80, 80);
+      
+      packageDetails.attractions.forEach((attraction, index) => {
+        if (yPosition > pageHeight - 20) {
+          doc.addPage();
+          yPosition = margin;
+        }
+        
+        const fillColor = index % 2 === 0 ? [248, 250, 252] : [255, 255, 255];
+        doc.rect(margin, yPosition, pageWidth - 2 * margin, 10, 'F');
+        
+        doc.text(`✓ ${attraction}`, margin + 5, yPosition + 7);
+        yPosition += 10;
+      });
+      
+      yPosition += 15;
+    }
+    
+    if (packageDetails?.hotels && packageDetails.hotels.length > 0) {
+      doc.addPage();
+      yPosition = margin;
+      
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(23, 37, 84);
+      doc.text('Accommodations', margin, yPosition);
+      yPosition += 10;
+      
+      doc.setDrawColor(200, 200, 200);
+      doc.line(margin, yPosition, pageWidth - margin, yPosition);
+      yPosition += 15;
+      
+      doc.setFontSize(10);
+      packageDetails.hotels.forEach((hotel, index) => {
+        if (yPosition > pageHeight - 50) {
+          doc.addPage();
+          yPosition = margin;
+        }
+        
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(23, 37, 84);
+        doc.text(`🏨 ${hotel}`, margin, yPosition);
+        yPosition += 7;
+        
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 100, 100);
+        doc.text('4-star property with premium amenities and excellent location', margin + 10, yPosition);
+        yPosition += 15;
+      });
+      
+      yPosition += 10;
+    }
+    
+    doc.addPage();
+    yPosition = margin;
+    
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(23, 37, 84);
+    doc.text('Package Inclusions', margin, yPosition);
     yPosition += 10;
     
     doc.setDrawColor(200, 200, 200);
@@ -835,7 +915,7 @@ useEffect(() => {
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(80, 80, 80);
     
-    packageDetails.attractions.forEach((attraction, index) => {
+    packageData?.includes.forEach((inclusion, index) => {
       if (yPosition > pageHeight - 20) {
         doc.addPage();
         yPosition = margin;
@@ -844,186 +924,112 @@ useEffect(() => {
       const fillColor = index % 2 === 0 ? [248, 250, 252] : [255, 255, 255];
       doc.rect(margin, yPosition, pageWidth - 2 * margin, 10, 'F');
       
-      doc.text(`✓ ${attraction}`, margin + 5, yPosition + 7);
+      doc.text(`✓ ${inclusion}`, margin + 5, yPosition + 7);
       yPosition += 10;
     });
+
+    if (packageDetails?.activity_details?.list) {
+      packageDetails.activity_details.list.forEach((activity, index) => {
+        if (yPosition > pageHeight - 20) {
+          doc.addPage();
+          yPosition = margin;
+        }
+        
+        doc.rect(margin, yPosition, pageWidth - 2 * margin, 10, 'F');
+        doc.text(`✓ ${activity}`, margin + 5, yPosition + 7);
+        yPosition += 10;
+      });
+    }
     
-    yPosition += 15;
-  }
-  
-  // Hotels section
-  if (packageDetails?.hotels && packageDetails.hotels.length > 0) {
-    doc.addPage();
-    yPosition = margin;
+    yPosition += 20;
     
-    doc.setFontSize(18);
+    doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(23, 37, 84);
-    doc.text('Accommodations', margin, yPosition);
+    doc.text('How To Book', margin, yPosition);
     yPosition += 10;
     
     doc.setDrawColor(200, 200, 200);
     doc.line(margin, yPosition, pageWidth - margin, yPosition);
     yPosition += 15;
     
+    const bookingSteps = [
+      "1. Review this itinerary and make any desired changes",
+      "2. Contact our travel experts to confirm availability",
+      "3. Make a 20% deposit to secure your booking",
+      "4. Receive your booking confirmation and travel documents",
+      "5. Pay the remaining balance 30 days before departure"
+    ];
+    
     doc.setFontSize(10);
-    packageDetails.hotels.forEach((hotel, index) => {
-      if (yPosition > pageHeight - 50) {
-        doc.addPage();
-        yPosition = margin;
-      }
-      
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(23, 37, 84);
-      doc.text(`🏨 ${hotel}`, margin, yPosition);
-      yPosition += 7;
-      
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(100, 100, 100);
-      doc.text('4-star property with premium amenities and excellent location', margin + 10, yPosition);
-      yPosition += 15;
-    });
-    
-    yPosition += 10;
-  }
-  
-  // Inclusions section
-  doc.addPage();
-  yPosition = margin;
-  
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(23, 37, 84);
-  doc.text('Package Inclusions', margin, yPosition);
-  yPosition += 10;
-  
-  doc.setDrawColor(200, 200, 200);
-  doc.line(margin, yPosition, pageWidth - margin, yPosition);
-  yPosition += 15;
-  
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(80, 80, 80);
-  
-  packageData?.includes.forEach((inclusion, index) => {
-    if (yPosition > pageHeight - 20) {
-      doc.addPage();
-      yPosition = margin;
-    }
-    
-    const fillColor = index % 2 === 0 ? [248, 250, 252] : [255, 255, 255];
-    doc.rect(margin, yPosition, pageWidth - 2 * margin, 10, 'F');
-    
-    doc.text(`✓ ${inclusion}`, margin + 5, yPosition + 7);
-    yPosition += 10;
-  });
-
-  if (packageDetails?.activity_details?.list) {
-    packageDetails.activity_details.list.forEach((activity, index) => {
-      if (yPosition > pageHeight - 20) {
-        doc.addPage();
-        yPosition = margin;
-      }
-      
-      doc.rect(margin, yPosition, pageWidth - 2 * margin, 10, 'F');
-      doc.text(`✓ ${activity}`, margin + 5, yPosition + 7);
+    bookingSteps.forEach((step, index) => {
+      doc.text(step, margin + 5, yPosition + 5);
       yPosition += 10;
     });
-  }
-  
-  yPosition += 20;
-  
-  // How to book section
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(23, 37, 84);
-  doc.text('How To Book', margin, yPosition);
-  yPosition += 10;
-  
-  doc.setDrawColor(200, 200, 200);
-  doc.line(margin, yPosition, pageWidth - margin, yPosition);
-  yPosition += 15;
-  
-  const bookingSteps = [
-    "1. Review this itinerary and make any desired changes",
-    "2. Contact our travel experts to confirm availability",
-    "3. Make a 20% deposit to secure your booking",
-    "4. Receive your booking confirmation and travel documents",
-    "5. Pay the remaining balance 30 days before departure"
-  ];
-  
-  doc.setFontSize(10);
-  bookingSteps.forEach((step, index) => {
-    doc.text(step, margin + 5, yPosition + 5);
-    yPosition += 10;
-  });
-  
-  yPosition += 20;
-  
-  // Contact information
-  doc.setFillColor(240, 249, 255);
-  doc.rect(margin - 5, yPosition - 5, pageWidth - 2 * margin + 10, 40, 'F');
-  doc.setDrawColor(200, 200, 200);
-  doc.rect(margin - 5, yPosition - 5, pageWidth - 2 * margin + 10, 40, 'D');
-  
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(23, 37, 84);
-  doc.text('Need Assistance?', margin, yPosition + 10);
-  
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Email: info@travelgenz.com', margin, yPosition + 20);
-  doc.text('Phone: +1 (555) 123-4567', margin, yPosition + 30);
-  
-  // Save the PDF
-  doc.save(`${packageData?.title.replace(/\s+/g, '_') || 'TravelGenz_Itinerary'}.pdf`);
-  
-  toast({
-    title: "PDF Downloaded",
-    description: "Your complete itinerary has been downloaded",
-  });
-
-  if (user && packageData) {
-    await supabase.from('user_activities').insert({
-      user_id: user.id,
-      action_type: 'download_itinerary',
-      item_type: 'package',
-      item_id: packageData.id,
-      item_name: packageData.title,
-      user_email: user.email
+    
+    yPosition += 20;
+    
+    doc.setFillColor(240, 249, 255);
+    doc.rect(margin - 5, yPosition - 5, pageWidth - 2 * margin + 10, 40, 'F');
+    doc.setDrawColor(200, 200, 200);
+    doc.rect(margin - 5, yPosition - 5, pageWidth - 2 * margin + 10, 40, 'D');
+    
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(23, 37, 84);
+    doc.text('Need Assistance?', margin, yPosition + 10);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Email: info@travelgenz.com', margin, yPosition + 20);
+    doc.text('Phone: +1 (555) 123-4567', margin, yPosition + 30);
+    
+    doc.save(`${packageData?.title.replace(/\s+/g, '_') || 'TravelGenz_Itinerary'}.pdf`);
+    
+    toast({
+      title: "PDF Downloaded",
+      description: "Your complete itinerary has been downloaded",
     });
-  }
-};
 
-// Helper function to get image data for PDF
-const getImageData = (url: string): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'Anonymous';
-    img.onload = () => {
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0);
-          const dataURL = canvas.toDataURL('image/jpeg', 0.8);
-          resolve(dataURL);
-        } else {
-          reject(new Error('Could not get canvas context'));
+    if (user && packageData) {
+      await supabase.from('user_activities').insert({
+        user_id: user.id,
+        action_type: 'download_itinerary',
+        item_type: 'package',
+        item_id: packageData.id,
+        item_name: packageData.title,
+        user_email: user.email
+      });
+    }
+  };
+
+  const getImageData = (url: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'Anonymous';
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0);
+            const dataURL = canvas.toDataURL('image/jpeg', 0.8);
+            resolve(dataURL);
+          } else {
+            reject(new Error('Could not get canvas context'));
+          }
+        } catch (error) {
+          reject(error);
         }
-      } catch (error) {
-        reject(error);
-      }
-    };
-    img.onerror = () => {
-      reject(new Error('Failed to load image'));
-    };
-    img.src = url;
-  });
-};
+      };
+      img.onerror = () => {
+        reject(new Error('Failed to load image'));
+      };
+      img.src = url;
+    });
+  };
 
   const getTimeSlot = (index: number) => {
     const timeSlots = ['MORNING', 'AFTERNOON', 'EVENING', 'NIGHT'];
@@ -1035,155 +1041,128 @@ const getImageData = (url: string): Promise<string> => {
     return visaRates[visaDestination][visaDuration] || 0;
   };
 
-const fetchFlightData = async () => {
-  if (!flightSource || !selectedDate || !packageData) {
-    return;
-  }
+  const fetchFlightData = async () => {
+    if (!flightSource || !selectedDate || !packageData) {
+      return;
+    }
 
-  setLoadingFlights(true);
-  setFlightData(null);
+    setLoadingFlights(true);
+    setFlightData(null);
 
-  try {
-    let destinationIATA = "BOM"; // Default fallback
-    let sourceIATA = flightSource.trim().toUpperCase();
-
-    // Query IATA table to get destination IATA code and country
     try {
-      // Build search queries for each destination
-      const destinationQueries = packageData.destinations.map(dest => 
-        `destinations.ilike.%${dest}%`
-      );
-      
-      const { data: destinationIataData, error: destinationError } = await supabase
-        .from('iata' as any)
-        .select('iata, destinations, country')
-        .or(destinationQueries.join(','))
-        .limit(1); // Just get the first match
+      let destinationIATA = "BOM";
+      let sourceIATA = flightSource.trim().toUpperCase();
 
-      if (!destinationError && destinationIataData && destinationIataData.length > 0) {
-        destinationIATA = (destinationIataData as any)[0].iata;
-        setDestinationCountry((destinationIataData as any)[0].country || packageData.destinations.join(', '));
-        console.log('Found destination IATA:', destinationIATA, 'country:', (destinationIataData as any)[0].country, 'for destinations:', packageData.destinations);
-      } else {
-        console.warn('Could not find destination IATA, using default:', destinationIATA, 'Error:', destinationError);
+      try {
+        const destinationQueries = packageData.destinations.map(dest => 
+          `destinations.ilike.%${dest}%`
+        );
+        
+        const { data: destinationIataData, error: destinationError } = await supabase
+          .from('iata' as any)
+          .select('iata, destinations, country')
+          .or(destinationQueries.join(','))
+          .limit(1);
+
+        if (!destinationError && destinationIataData && destinationIataData.length > 0) {
+          destinationIATA = (destinationIataData as any)[0].iata;
+          setDestinationCountry((destinationIataData as any)[0].country || packageData.destinations.join(', '));
+        } else {
+          setDestinationCountry(packageData.destinations.join(', '));
+        }
+      } catch (destinationLookupError) {
         setDestinationCountry(packageData.destinations.join(', '));
       }
-    } catch (destinationLookupError) {
-      console.warn('Destination IATA lookup failed, using default:', destinationIATA, 'Error:', destinationLookupError);
-      setDestinationCountry(packageData.destinations.join(', '));
-    }
 
-    // Apply fallback for common cities first
-    const cityToIATA: Record<string, string> = {
-      'delhi': 'DEL',
-      'mumbai': 'BOM',
-      'chennai': 'MAA',
-      'kolkata': 'CCU',
-      'bangalore': 'BLR',
-      'bengaluru': 'BLR',
-      'hyderabad': 'HYD',
-      'pune': 'PNQ',
-      'ahmedabad': 'AMD',
-      'jaipur': 'JAI',
-      'kochi': 'COK',
-      'goa': 'GOI'
-    };
+      const cityToIATA: Record<string, string> = {
+        'delhi': 'DEL',
+        'mumbai': 'BOM',
+        'chennai': 'MAA',
+        'kolkata': 'CCU',
+        'bangalore': 'BLR',
+        'bengaluru': 'BLR',
+        'hyderabad': 'HYD',
+        'pune': 'PNQ',
+        'ahmedabad': 'AMD',
+        'jaipur': 'JAI',
+        'kochi': 'COK',
+        'goa': 'GOI'
+      };
 
-    // Check if it's a known city name
-    const lowerSource = flightSource.toLowerCase();
-    let foundInFallback = false;
-    
-    for (const [city, code] of Object.entries(cityToIATA)) {
-      if (lowerSource.includes(city)) {
-        sourceIATA = code;
-        foundInFallback = true;
-        console.log('Using fallback source IATA:', sourceIATA, 'for source:', flightSource);
-        break;
-      }
-    }
-
-    // If not found in fallback and not a 3-letter code, try database lookup
-    if (!foundInFallback && sourceIATA.length !== 3) {
-      try {
-        const { data: sourceIataData, error: sourceError } = await supabase
-          .from('iata' as any)
-          .select('iata, destinations')
-          .ilike('destinations', `%${flightSource}%`)
-          .limit(1);
-        
-        if (!sourceError && sourceIataData && sourceIataData.length > 0) {
-          sourceIATA = (sourceIataData as any)[0].iata;
-          console.log('Found source IATA from DB:', sourceIATA, 'for source:', flightSource);
-        } else {
-          console.warn('Could not find source IATA for:', flightSource, 'Error:', sourceError);
+      const lowerSource = flightSource.toLowerCase();
+      let foundInFallback = false;
+      
+      for (const [city, code] of Object.entries(cityToIATA)) {
+        if (lowerSource.includes(city)) {
+          sourceIATA = code;
+          foundInFallback = true;
+          break;
         }
-      } catch (sourceLookupError) {
-        console.warn('Source IATA lookup failed:', sourceLookupError);
       }
-    } else if (sourceIATA.length === 3) {
-      // Already a 3-letter code, use it as-is
-      console.log('Using provided IATA code:', sourceIATA);
-    }
 
-    // Format date to YYYY-MM-DD
-    const departureDate = format(selectedDate, 'yyyy-MM-dd');
-    
-    // Get duration from selected duration (e.g., "3" becomes "3 days")
-    const duration = `${selectedDuration} days`;
+      if (!foundInFallback && sourceIATA.length !== 3) {
+        try {
+          const { data: sourceIataData, error: sourceError } = await supabase
+            .from('iata' as any)
+            .select('iata, destinations')
+            .ilike('destinations', `%${flightSource}%`)
+            .limit(1);
+          
+          if (!sourceError && sourceIataData && sourceIataData.length > 0) {
+            sourceIATA = (sourceIataData as any)[0].iata;
+          }
+        } catch (sourceLookupError) {
+          console.warn('Source IATA lookup failed:', sourceLookupError);
+        }
+      }
 
-    // Build API URL
-    const params = new URLSearchParams({
-      origin: sourceIATA,
-      destination: destinationIATA,
-      departure_date: departureDate,
-      duration: duration
-    });
+      const departureDate = format(selectedDate, 'yyyy-MM-dd');
+      const duration = `${selectedDuration} days`;
 
-    console.log('Final flight search params:', {
-      source: sourceIATA,
-      destination: destinationIATA,
-      date: departureDate,
-      duration: duration
-    });
-    
-    const response = await fetch(`${flightApiUrl}/flight-price?${params.toString()}`);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Flight API error:', errorText);
-      throw new Error('Failed to fetch flight data');
-    }
+      const params = new URLSearchParams({
+        origin: sourceIATA,
+        destination: destinationIATA,
+        departure_date: departureDate,
+        duration: duration
+      });
+      
+      const response = await fetch(`${flightApiUrl}/flight-price?${params.toString()}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Flight API error:', errorText);
+        throw new Error('Failed to fetch flight data');
+      }
 
-    const data = await response.json();
-    
-    if (data.message) {
+      const data = await response.json();
+      
+      if (data.message) {
+        toast({
+          title: "No Flights Found",
+          description: data.message,
+          variant: "destructive",
+        });
+        setFlightData(null);
+      } else {
+        setFlightData(data);
+        toast({
+          title: "Flights Found!",
+          description: "Flight details loaded successfully",
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching flight data:', error);
       toast({
-        title: "No Flights Found",
-        description: data.message,
+        title: "Flight Search Failed",
+        description: "Please check if the API is running and destinations are valid",
         variant: "destructive",
       });
       setFlightData(null);
-    } else {
-      setFlightData(data);
-      toast({
-        title: "Flights Found!",
-        description: "Flight details loaded successfully",
-      });
+    } finally {
+      setLoadingFlights(false);
     }
-  } catch (error) {
-    console.error('Error fetching flight data:', error);
-    toast({
-      title: "Flight Search Failed",
-      description: "Please check if the API is running and destinations are valid",
-      variant: "destructive",
-    });
-    setFlightData(null);
-  } finally {
-    setLoadingFlights(false);
-  }
-};
+  };
 
-  // Auto-fetch flights when date is selected and source is provided
   useEffect(() => {
     if (flightSource && selectedDate && packageData) {
       fetchFlightData();
@@ -1219,8 +1198,6 @@ const fetchFlightData = async () => {
     );
   }
 
-  /* images variable already declared above, do not redeclare here */
-
   const currentItinerary = packageDetails?.itinerary?.[selectedDuration] || [];
   const totalVisaCost = calculateVisaCost() * visaMembers;
 
@@ -1242,35 +1219,27 @@ const fetchFlightData = async () => {
           </div>
         </div>
 
-        {/* Enhanced Background with Blur Effect */}
         <div className="relative min-h-[400px] overflow-hidden">
-          {/* Multiple Layered Backgrounds for Enhanced Effect */}
           <div
             className="absolute inset-0 bg-center bg-cover scale-110"
             style={{ backgroundImage: `url(${images[currentImageIndex]})` }}
           />
           
-          {/* Primary Blur Layer */}
           <div
             className="absolute inset-0 bg-center bg-cover scale-110 blur-2xl opacity-70"
             style={{ backgroundImage: `url(${images[currentImageIndex]})` }}
           />
           
-          {/* Secondary Blur Layer for more depth */}
           <div
             className="absolute inset-0 bg-center bg-cover scale-105 blur-lg opacity-50"
             style={{ backgroundImage: `url(${images[currentImageIndex]})` }}
           />
           
-          {/* Gradient Overlays for better text readability */}
           <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-black/20" />
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/10 to-black/40" />
           
-          {/* Content Container */}
           <div className="relative z-10 max-w-7xl mx-auto px-4 py-8 md:py-12">
-            {/* Main Card with Glass Effect */}
             <div className="grid grid-cols-1 lg:grid-cols-2 bg-white/95 backdrop-blur-sm rounded-2xl overflow-hidden shadow-2xl border border-white/20">
-              {/* Left Side - Package Info */}
               <div className="p-6 md:p-8">
                 <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-3 text-gray-900 line-clamp-2">
                   {packageData.title}
@@ -1327,7 +1296,6 @@ const fetchFlightData = async () => {
                 </div>
               </div>
 
-              {/* Right Side - Main Image with Navigation */}
               <div className="relative h-[300px] lg:h-[400px]">
                 <motion.img
                   key={currentImageIndex}
@@ -1341,7 +1309,6 @@ const fetchFlightData = async () => {
 
                 {images.length > 1 && (
                   <>
-                    {/* Gallery Button with enhanced styling */}
                     <button
                       onClick={() => setShowGallery(true)}
                       className="absolute top-4 right-4 bg-white/95 backdrop-blur-sm hover:bg-white px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 shadow-lg z-10 transition-all duration-200 hover:scale-105"
@@ -1350,7 +1317,6 @@ const fetchFlightData = async () => {
                       <span>Gallery ({images.length})</span>
                     </button>
 
-                    {/* Enhanced Navigation Arrows */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -1371,7 +1337,6 @@ const fetchFlightData = async () => {
                       <ChevronRight className="h-5 w-5" />
                     </button>
 
-                    {/* Enhanced Auto-slide Dots */}
                     <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 z-10">
                       {images.map((_, index) => (
                         <button
@@ -1391,14 +1356,12 @@ const fetchFlightData = async () => {
                   </>
                 )}
 
-                {/* Image overlay gradient for better dot visibility */}
                 <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/30 to-transparent pointer-events-none" />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4 py-4 md:py-6 lg:py-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 lg:gap-8">
             <div className="lg:col-span-2 space-y-4 md:space-y-6">
@@ -1414,7 +1377,6 @@ const fetchFlightData = async () => {
                     </TabsList>
 
                     <TabsContent value="overview" className="mt-[4rem] md:mt-6">
-
                       <div className="space-y-4 md:space-y-6">
                         <div>
                           <h3 className="font-semibold mb-2 md:mb-3 text-base md:text-lg">About This Trip</h3>
@@ -1455,63 +1417,57 @@ const fetchFlightData = async () => {
                     </TabsContent>
 
                     <TabsContent value="itinerary" className="mt-[4rem] md:mt-6">
-  <div className="space-y-4 md:space-y-6">
-    <div className="text-sm font-medium text-gray-700">
-      {selectedDuration} Days Itinerary
-    </div>
+                      <div className="space-y-4 md:space-y-6">
+                        <div className="text-sm font-medium text-gray-700">
+                          {selectedDuration} Days Itinerary
+                        </div>
 
-    {currentItinerary.length > 0 ? (
-      <div className="space-y-3 md:space-y-4">
-        {currentItinerary.map((day, index) => (
-          <div key={index} className="border rounded-lg p-3 md:p-4 bg-white">
-            <h4 className="font-semibold mb-2 text-sm md:text-base text-blue-600">
-              Day {day.day}: {day.title}
-            </h4>
-            
-            {day.activities && day.activities.length > 0 && (
-              <div className="mb-3">
-                <h5 className="font-medium mb-1 text-xs md:text-sm">Activities:</h5>
-                <ul className="space-y-1">
-                  {day.activities.map((activity, actIndex) => (
-                    <li key={actIndex} className="text-xs md:text-sm text-gray-600 flex items-start gap-2">
-                      <span className="text-blue-500 mt-1">•</span>
-                      <span>{activity}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+                        {currentItinerary.length > 0 ? (
+                          <div className="space-y-3 md:space-y-4">
+                            {currentItinerary.map((day, index) => (
+                              <div key={index} className="border rounded-lg p-3 md:p-4 bg-white">
+                                <h4 className="font-semibold mb-2 text-sm md:text-base text-blue-600">
+                                  Day {day.day}: {day.title}
+                                </h4>
+                                
+                                {day.activities && day.activities.length > 0 && (
+                                  <div className="mb-3">
+                                    <h5 className="font-medium mb-1 text-xs md:text-sm">Activities:</h5>
+                                    <ul className="space-y-1">
+                                      {day.activities.map((activity, actIndex) => (
+                                        <li key={actIndex} className="text-xs md:text-sm text-gray-600 flex items-start gap-2">
+                                          <span className="text-blue-500 mt-1">•</span>
+                                          <span>{activity}</span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 text-xs md:text-sm">
-              {day.accommodation && (
-                <div>
-                  <span className="font-medium">🏨 Stay:</span>
-                  <span className="ml-1">{day.accommodation}</span>
-                </div>
-              )}
-              {day.breakfast && (
-                <div>
-                  <span className="font-medium">🍳 Breakfast:</span>
-                  <span className="ml-1">{day.breakfast}</span>
-                </div>
-              )}
-              {/* {day.dinner && (
-                <div>
-                  <span className="font-medium">🍽️ Dinner:</span>
-                  <span className="ml-1">{day.dinner}</span>
-                </div>
-              )} */}
-            </div>
-          </div>
-        ))}
-      </div>
-    ) : (
-      <div className="text-center py-6 md:py-8 text-gray-500">
-        <p className="text-sm md:text-base">Detailed itinerary will be provided upon booking.</p>
-      </div>
-    )}
-  </div>
-</TabsContent>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 text-xs md:text-sm">
+                                  {day.accommodation && (
+                                    <div>
+                                      <span className="font-medium">🏨 Stay:</span>
+                                      <span className="ml-1">{day.accommodation}</span>
+                                    </div>
+                                  )}
+                                  {day.breakfast && (
+                                    <div>
+                                      <span className="font-medium">🍳 Breakfast:</span>
+                                      <span className="ml-1">{day.breakfast}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-6 md:py-8 text-gray-500">
+                            <p className="text-sm md:text-base">Detailed itinerary will be provided upon booking.</p>
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
 
                     <TabsContent value="inclusions" className="mt-[4rem] md:mt-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
@@ -1598,7 +1554,6 @@ const fetchFlightData = async () => {
                 </CardContent>
               </Card>
 
-              {/* Package Videos Section */}
               <VideoSection packageId={packageData?.id} />
 
               <Card>
@@ -1770,11 +1725,11 @@ const fetchFlightData = async () => {
                   </CardHeader>
                   <CardContent className="space-y-4 md:space-y-6">
                     <div>
-  <label className="block text-sm font-medium mb-2">Duration</label>
-  <div className="border rounded-lg px-3 py-2 bg-gray-50 text-sm">
-    {selectedDuration} Days
-  </div>
-</div>
+                      <label className="block text-sm font-medium mb-2">Duration</label>
+                      <div className="border rounded-lg px-3 py-2 bg-gray-50 text-sm">
+                        {selectedDuration} Days
+                      </div>
+                    </div>
 
                     <div className="flex items-center space-x-2">
                       <input
@@ -1856,88 +1811,60 @@ const fetchFlightData = async () => {
                       </div>
                     </div>
 
-
                     <div className="border-t pt-4 space-y-2">
-  {packageData.original_price && (() => {
-    const originalBasePrice = parseInt(packageData.original_price.replace(/[^0-9]/g, '')) || 0;
-    const currentPrice = getCurrentPrice();
+                      {/* UPDATED: Use getAdjustedOriginalPrice instead of fixed original price */}
+                      {packageData.original_price && (
+                        <div className="flex justify-between text-sm md:text-base text-gray-500">
+                          <span>Original Price:</span>
+                          <span className="line-through">
+                            ₹{(getAdjustedOriginalPrice() * members).toLocaleString()}
+                          </span>
+                        </div>
+                      )}
 
-    // Flight cost = difference between withFlights price and withoutFlights price
-    const withFlightsPrice = 149000; // replace with dynamic if available
-    const withoutFlightsPrice = 74000; // replace with dynamic if available
-    const flightCost = withFlightsPrice - withoutFlightsPrice;
+                      <div className="flex justify-between text-sm md:text-base">
+                        <span>
+                          Package ({selectedDuration} days × {members} {members === 1 ? 'person' : 'people'})
+                        </span>
+                        <span>₹{(getCurrentPrice() * members).toLocaleString()}</span>
+                      </div>
 
-    // Adjust original price
-    const adjustedOriginalPrice = withFlights 
-      ? originalBasePrice 
-      : (originalBasePrice - flightCost);
+                      {addedVisaCost > 0 && (
+                        <div className="flex justify-between text-sm md:text-base">
+                          <span>Visa Assistance</span>
+                          <span>₹{addedVisaCost.toLocaleString()}</span>
+                        </div>
+                      )}
 
-    return (
-      <div className="flex justify-between text-sm md:text-base text-gray-500">
-        <span>Original Price:</span>
-        <span className="line-through">
-          ₹{(adjustedOriginalPrice * members).toLocaleString()}
-        </span>
-      </div>
-    );
-  })()}
+                      <div className="flex justify-between font-bold text-base md:text-lg border-t pt-2">
+                        <span>Total</span>
+                        <span className="text-green-600">₹{getTotalPrice().toLocaleString()}</span>
+                      </div>
 
-  <div className="flex justify-between text-sm md:text-base">
-    <span>
-      Package ({selectedDuration} days × {members} {members === 1 ? 'person' : 'people'})
-    </span>
-    <span>₹{(getCurrentPrice() * members).toLocaleString()}</span>
-  </div>
-
-  {addedVisaCost > 0 && (
-    <div className="flex justify-between text-sm md:text-base">
-      <span>Visa Assistance</span>
-      <span>₹{addedVisaCost.toLocaleString()}</span>
-    </div>
-  )}
-
-  <div className="flex justify-between font-bold text-base md:text-lg border-t pt-2">
-    <span>Total</span>
-    <span className="text-green-600">₹{getTotalPrice().toLocaleString()}</span>
-  </div>
-
-  {packageData.original_price && (() => {
-    const originalBasePrice = parseInt(packageData.original_price.replace(/[^0-9]/g, '')) || 0;
-    const currentPrice = getCurrentPrice();
-
-    const withFlightsPrice = 149000; // replace with dynamic if available
-    const withoutFlightsPrice = 74000; // replace with dynamic if available
-    const flightCost = withFlightsPrice - withoutFlightsPrice;
-
-    const adjustedOriginalPrice = withFlights 
-      ? originalBasePrice 
-      : (originalBasePrice - flightCost);
-
-    return (
-      <motion.div 
-        className="flex justify-between items-center mt-2 p-2 bg-green-50 rounded-lg border border-green-200"
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: "spring", stiffness: 500, damping: 15 }}
-      >
-        <span className="text-green-700 font-semibold text-sm">Saved:</span>
-        <div className="flex items-center gap-1">
-          <span className="text-green-700 font-bold">
-            ₹{((adjustedOriginalPrice * members) - (currentPrice * members)).toLocaleString()}
-          </span>
-          <motion.span
-            className="text-red-500"
-            animate={{ scale: [1, 1.2, 1] }}
-            transition={{ duration: 1.5, repeat: Infinity, repeatType: "reverse" }}
-          >
-            ❤️
-          </motion.span>
-        </div>
-      </motion.div>
-    );
-  })()}
-</div>
-
+                      {/* UPDATED: Calculate savings based on adjusted original price */}
+                      {packageData.original_price && (
+                        <motion.div 
+                          className="flex justify-between items-center mt-2 p-2 bg-green-50 rounded-lg border border-green-200"
+                          initial={{ scale: 0.9, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                        >
+                          <span className="text-green-700 font-semibold text-sm">Saved:</span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-green-700 font-bold">
+                              ₹{((getAdjustedOriginalPrice() * members) - (getCurrentPrice() * members)).toLocaleString()}
+                            </span>
+                            <motion.span
+                              className="text-red-500"
+                              animate={{ scale: [1, 1.2, 1] }}
+                              transition={{ duration: 1.5, repeat: Infinity, repeatType: "reverse" }}
+                            >
+                              ❤️
+                            </motion.span>
+                          </div>
+                        </motion.div>
+                      )}
+                    </div>
 
                     <div className="space-y-2 md:space-y-3">
                       <Button 
@@ -1963,29 +1890,23 @@ const fetchFlightData = async () => {
                   </CardContent>
                 </Card>
 
-                {/* Flight Details Section */}
                 {loadingFlights && (
                   <Card>
                     <CardContent className="p-8">
                       <div className="flex flex-col items-center gap-6 py-6">
-                        {/* Animated flight spinner */}
                         <div className="relative w-28 h-28">
-                          {/* Outer rotating circle */}
                           <div className="absolute inset-0 border-4 border-blue-100 rounded-full"></div>
                           <div className="absolute inset-0 border-4 border-blue-500 rounded-full border-t-transparent animate-spin"></div>
                           
-                          {/* Plane icon that orbits */}
                           <div className="absolute inset-0 animate-spin" style={{ animationDuration: '3s' }}>
                             <Plane className="h-7 w-7 text-blue-600 absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90" />
                           </div>
                           
-                          {/* Center pulse effect */}
                           <div className="absolute inset-0 flex items-center justify-center">
                             <div className="w-4 h-4 bg-blue-500 rounded-full animate-pulse"></div>
                           </div>
                         </div>
                         
-                        {/* Loading text */}
                         <div className="space-y-2 text-center">
                           <p className="text-gray-900 font-semibold text-xl">Searching for flights...</p>
                           <p className="text-gray-500 text-sm">Finding you the best deals from {flightSource}</p>
@@ -2012,117 +1933,109 @@ const fetchFlightData = async () => {
         </div>
 
         {showGallery && (
-  <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4">
-    {/* Close Button - Moved outside the content container and given higher z-index */}
-    <button
-      onClick={() => setShowGallery(false)}
-      className="fixed top-4 right-4 z-50 text-white hover:text-gray-300 bg-black/50 rounded-full p-2"
-    >
-      <X className="h-6 w-6 md:h-8 md:w-8" />
-    </button>
-
-    <div className="relative max-w-6xl w-full h-full flex flex-col">
-      {/* Main Gallery Content */}
-      <div className="relative flex-1 flex items-center justify-center">
-        {/* Previous Image (Blurred) */}
-        <div className="absolute left-0 h-full w-1/4 max-w-[200px] flex items-center justify-center">
-          <div className="relative w-full h-3/4 overflow-hidden rounded-lg opacity-70 blur-sm">
-            <img 
-              src={images[(currentImageIndex - 1 + images.length) % images.length]}
-              alt={`Previous`}
-              className="w-full h-full object-cover"
-            />
-          </div>
-        </div>
-
-        {/* Current Image */}
-        <motion.div
-          key={currentImageIndex}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
-          className="relative z-10 w-full max-w-3xl h-full max-h-[80vh] flex items-center justify-center"
-        >
-          <img 
-            src={images[currentImageIndex]}
-            alt={`Gallery ${currentImageIndex + 1}`}
-            className="w-full h-full object-contain"
-          />
-        </motion.div>
-
-        {/* Next Image (Blurred) */}
-        <div className="absolute right-0 h-full w-1/4 max-w-[200px] flex items-center justify-center">
-          <div className="relative w-full h-3/4 overflow-hidden rounded-lg opacity-70 blur-sm">
-            <img 
-              src={images[(currentImageIndex + 1) % images.length]}
-              alt={`Next`}
-              className="w-full h-full object-cover"
-            />
-          </div>
-        </div>
-
-        {/* Navigation Arrows */}
-        {images.length > 1 && (
-          <>
+          <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4">
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
-              }}
-              className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 md:p-3 z-20"
+              onClick={() => setShowGallery(false)}
+              className="fixed top-4 right-4 z-50 text-white hover:text-gray-300 bg-black/50 rounded-full p-2"
             >
-              <ChevronLeft className="h-6 w-6 md:h-8 md:w-8" />
+              <X className="h-6 w-6 md:h-8 md:w-8" />
             </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setCurrentImageIndex((prev) => (prev + 1) % images.length);
-              }}
-              className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 md:p-3 z-20"
-            >
-              <ChevronRight className="h-6 w-6 md:h-8 md:w-8" />
-            </button>
-          </>
-        )}
-      </div>
 
-      {/* Thumbnail Slider */}
-      {images.length > 1 && (
-        <div className="h-24 md:h-32 w-full mt-4 flex items-center justify-center">
-          <div className="relative w-full max-w-3xl h-full">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="thumbnails-container flex space-x-2 md:space-x-4 overflow-x-auto py-2 px-4 scrollbar-hide">
-                {images.map((img, index) => (
-                  <button
-                    key={index}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setCurrentImageIndex(index);
-                    }}
-                    className={`thumbnail-${index} flex-shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden transition-all duration-200 ${
-                      currentImageIndex === index ? 'ring-2 md:ring-4 ring-travel-primary scale-105 md:scale-110' : 'opacity-70 hover:opacity-100'
-                    }`}
-                  >
-                    <img
-                      src={img}
-                      alt={`Thumbnail ${index + 1}`}
+            <div className="relative max-w-6xl w-full h-full flex flex-col">
+              <div className="relative flex-1 flex items-center justify-center">
+                <div className="absolute left-0 h-full w-1/4 max-w-[200px] flex items-center justify-center">
+                  <div className="relative w-full h-3/4 overflow-hidden rounded-lg opacity-70 blur-sm">
+                    <img 
+                      src={images[(currentImageIndex - 1 + images.length) % images.length]}
+                      alt={`Previous`}
                       className="w-full h-full object-cover"
                     />
-                  </button>
-                ))}
+                  </div>
+                </div>
+
+                <motion.div
+                  key={currentImageIndex}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                  className="relative z-10 w-full max-w-3xl h-full max-h-[80vh] flex items-center justify-center"
+                >
+                  <img 
+                    src={images[currentImageIndex]}
+                    alt={`Gallery ${currentImageIndex + 1}`}
+                    className="w-full h-full object-contain"
+                  />
+                </motion.div>
+
+                <div className="absolute right-0 h-full w-1/4 max-w-[200px] flex items-center justify-center">
+                  <div className="relative w-full h-3/4 overflow-hidden rounded-lg opacity-70 blur-sm">
+                    <img 
+                      src={images[(currentImageIndex + 1) % images.length]}
+                      alt={`Next`}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                </div>
+
+                {images.length > 1 && (
+                  <>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+                      }}
+                      className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 md:p-3 z-20"
+                    >
+                      <ChevronLeft className="h-6 w-6 md:h-8 md:w-8" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCurrentImageIndex((prev) => (prev + 1) % images.length);
+                      }}
+                      className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 md:p-3 z-20"
+                    >
+                      <ChevronRight className="h-6 w-6 md:h-8 md:w-8" />
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {images.length > 1 && (
+                <div className="h-24 md:h-32 w-full mt-4 flex items-center justify-center">
+                  <div className="relative w-full max-w-3xl h-full">
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="thumbnails-container flex space-x-2 md:space-x-4 overflow-x-auto py-2 px-4 scrollbar-hide">
+                        {images.map((img, index) => (
+                          <button
+                            key={index}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCurrentImageIndex(index);
+                            }}
+                            className={`thumbnail-${index} flex-shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden transition-all duration-200 ${
+                              currentImageIndex === index ? 'ring-2 md:ring-4 ring-travel-primary scale-105 md:scale-110' : 'opacity-70 hover:opacity-100'
+                            }`}
+                          >
+                            <img
+                              src={img}
+                              alt={`Thumbnail ${index + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white text-sm md:text-base px-3 py-1 rounded-full z-20">
+                {currentImageIndex + 1} / {images.length}
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Image Counter */}
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white text-sm md:text-base px-3 py-1 rounded-full z-20">
-        {currentImageIndex + 1} / {images.length}
-      </div>
-    </div>
-  </div>
-)}
+        )}
 
         <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-3 md:p-4 z-40">
           <div className="flex items-center justify-between gap-3">
