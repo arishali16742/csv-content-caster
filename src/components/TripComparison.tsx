@@ -1,15 +1,25 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Check, ArrowRight } from 'lucide-react';
 import { Button } from './ui/button';
 import { Link } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ComparisonResult {
   ourPrice: number;
   theirPrice: number;
   savings: number;
   savingsPercent: number;
+}
+
+interface Package {
+  id: string;
+  title: string;
+  destinations: string[];
+  image: string;
+  price: string | number;
+  duration: string;
 }
 
 const TripComparison: React.FC = () => {
@@ -24,23 +34,45 @@ const TripComparison: React.FC = () => {
   const [travellers, setTravellers] = useState('1');
   const [showResults, setShowResults] = useState(false);
   const [result, setResult] = useState<ComparisonResult | null>(null);
+  const [matchingPackages, setMatchingPackages] = useState<Package[]>([]);
 
-  const handleCompare = (e: React.FormEvent) => {
+  const handleCompare = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const totalPerTraveller =
-      Number(hotelAmount) + Number(flightAmount) + Number(activitiesAmount);
-    const totalAllTravellers = totalPerTraveller * Number(travellers);
+    // Calculate total WITHOUT multiplying by travellers
+    const theirPrice = Number(hotelAmount) + Number(flightAmount) + Number(activitiesAmount);
 
-    const discountPercent = Math.floor(Math.random() * 6) + 10; // 10–15%
-    const ourPrice = Math.floor(totalAllTravellers * (1 - discountPercent / 100));
-    const savings = totalAllTravellers - ourPrice;
+    // Fetch packages matching the destination
+    const { data: packages, error } = await supabase
+      .from('packages')
+      .select('*')
+      .ilike('destinations', `%${destination}%`)
+      .or('status.is.null,status.eq.published')
+      .limit(3);
+
+    if (error) {
+      console.error('Error fetching packages:', error);
+    }
+
+    // Calculate average price of matching packages
+    let ourPrice = theirPrice;
+    if (packages && packages.length > 0) {
+      const totalPackagePrice = packages.reduce((sum, pkg) => {
+        const pkgPrice = typeof pkg.price === 'string' ? parseFloat(pkg.price) : pkg.price;
+        return sum + (pkgPrice || 0);
+      }, 0);
+      ourPrice = Math.floor(totalPackagePrice / packages.length);
+      setMatchingPackages(packages as any);
+    }
+
+    const savings = theirPrice - ourPrice;
+    const savingsPercent = theirPrice > 0 ? Math.floor((savings / theirPrice) * 100) : 0;
 
     setResult({
       ourPrice,
-      theirPrice: totalAllTravellers,
+      theirPrice,
       savings,
-      savingsPercent: discountPercent
+      savingsPercent
     });
 
     setShowResults(true);
@@ -287,6 +319,48 @@ const TripComparison: React.FC = () => {
               </div>
             </div>
           </motion.div>
+
+          {/* Matching Packages Section */}
+          {showResults && matchingPackages.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className="mt-8 max-w-4xl mx-auto px-2"
+            >
+              <h3 className="text-xl md:text-2xl font-bold mb-4 text-center">
+                Matching Packages for You
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {matchingPackages.map((pkg) => (
+                  <Link
+                    key={pkg.id}
+                    to={`/package/${pkg.id}`}
+                    className="group bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300"
+                  >
+                    <div className="relative h-40 overflow-hidden">
+                      <img
+                        src={pkg.image}
+                        alt={pkg.title}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      />
+                    </div>
+                    <div className="p-4">
+                      <h4 className="font-semibold text-base mb-2 line-clamp-2">
+                        {pkg.title}
+                      </h4>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">{pkg.duration}</span>
+                        <span className="text-lg font-bold text-pink-600">
+                          ₹{typeof pkg.price === 'number' ? pkg.price.toLocaleString('en-IN') : pkg.price}
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </motion.div>
+          )}
         </div>
       </div>
     </section>
