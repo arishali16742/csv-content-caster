@@ -42,11 +42,11 @@ const TripComparison: React.FC = () => {
     // Calculate total WITHOUT multiplying by travellers
     const theirPrice = Number(hotelAmount) + Number(flightAmount) + Number(activitiesAmount);
 
-    // Fetch packages matching the destination
+    // Fetch packages matching the destination (check both destinations array and country field)
     const { data: packages, error } = await supabase
       .from('packages')
       .select('*')
-      .ilike('destinations', `%${destination}%`)
+      .or(`country.ilike.%${destination}%,destinations.cs.{${destination}}`)
       .or('status.is.null,status.eq.published')
       .limit(3);
 
